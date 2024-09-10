@@ -3,20 +3,38 @@ package main
 import (
 	"log"
 	"net/http"
-	"tender-service/internal/handlers"
+	// "tender-service/internal/handlers"
 	"tender-service/config"
+    // "tender-service/internal/database"
 	// "os"
 )
 
 func main() {
-    // Привязываем обработчик для /api/ping
-    http.HandleFunc("/api/ping", handlers.PingHandler)
+    // // Подключение к базе данных
+    // conn, err := database.ConnectPostgres()
+    // if err != nil {
+    //     log.Fatalf("Ошибка подключения к базе данных: %v", err)
+    // }
+    
+    // // Создание таблиц в базе данных
+    // if err := database.CreatePrivateTables(conn); err != nil {
+    //     log.Fatalf("Ошибка создания таблиц: %v", err)
+    // }
 
-    // Запускаем сервер на 0.0.0.0:8080, чтобы сервер был доступен извне Docker-контейнера
-    address := config.LoadConfig().ServerAddress
+    // // Привязываем обработчики
+    // http.HandleFunc("/api/ping", handlers.PingHandler)
+    // http.HandleFunc("/api/tender/new", handlers.CreateTenderHandler)
+
+    // Загружаем конфигурацию
+    cfg := config.LoadConfig()
+    address := cfg.ServerAddress
+    
+
     log.Println("Server starting on", address)
-
+    log.Println("qwerty", cfg.PostgresConn)
+    // Запускаем сервер
     if err := http.ListenAndServe(address, nil); err != nil {
-        log.Fatal("Server failed to start:", err)
+        log.Fatalf("Ошибка при запуске сервера: %v", err)
     }
 }
+
