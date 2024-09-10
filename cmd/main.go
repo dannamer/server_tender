@@ -32,6 +32,13 @@ func main() {
 
     log.Println("Server starting on", address)
     log.Println("qwerty", cfg.PostgresConn)
+    log.Println("qwerty", cfg.PostgresDB)
+    log.Println("qwerty", cfg.PostgresHost)
+    log.Println("qwerty", cfg.PostgresJDBCURL)
+    log.Println("qwerty", cfg.PostgresPass)
+    log.Println("qwerty", cfg.PostgresPort)
+    log.Println("qwerty", cfg.PostgresUser)
+    log.Println("qwerty", cfg.ServerAddress)
     // Запускаем сервер
     if err := http.ListenAndServe(address, nil); err != nil {
         log.Fatalf("Ошибка при запуске сервера: %v", err)
