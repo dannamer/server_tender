@@ -16,27 +16,27 @@ const (
 	Canceled  Status = "Canceled"
 )
 
-
 type Bid struct {
-	ID          string     `json:"id"`
-	Name        string     `json:"name"`
-	Description string     `json:"description"`
-	Status      Status     `json:"status"`
-	TenderID    string     `json:"tenderId"`
-	AuthorType  AuthorType `json:"authorType"`
-	AuthorID    string     `json:"authorId"`
-	Version     int        `json:"version"`
-	CreatedAt   time.Time  `json:"createdAt"`
+	ID             string     `json:"id"`
+	Name           string     `json:"name"`
+	Description    string     `json:"description"`
+	Status         Status     `json:"status"`
+	TenderID       string     `json:"tenderId"`
+	AuthorType     AuthorType `json:"authorType"`
+	AuthorID       string     `json:"authorId"`
+	OrganizationID string     `json:"OrganizationId"`
+	Version        int        `json:"version"`
+	CreatedAt      time.Time  `json:"createdAt"`
 }
 
 type BidResponse struct {
-	ID          string     `json:"id"`
-	Name        string     `json:"name"`
-	Status      Status     `json:"status"`
-	AuthorType  AuthorType `json:"authorType"`
-	AuthorID    string     `json:"authorId"`
-	Version     int        `json:"version"`
-	CreatedAt   time.Time  `json:"createdAt"`
+	ID         string     `json:"id"`
+	Name       string     `json:"name"`
+	Status     Status     `json:"status"`
+	AuthorType AuthorType `json:"authorType"`
+	AuthorID   string     `json:"authorId"`
+	Version    int        `json:"version"`
+	CreatedAt  time.Time  `json:"createdAt"`
 }
 
 type BidRequest struct {

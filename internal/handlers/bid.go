@@ -2,12 +2,12 @@ package handlers
 
 import (
 	"encoding/json"
+	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v4"
 	"net/http"
 	"strconv"
 	"tender-service/internal/database"
 	"tender-service/internal/models"
-	"github.com/go-chi/chi/v5"
 )
 
 func CreateBidHandler(w http.ResponseWriter, r *http.Request) {
@@ -16,8 +16,8 @@ func CreateBidHandler(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusMethodNotAllowed, "Метод не поддерживается")
 		return
 	}
-
 	// Декодируем тело запроса
+	///
 	var bidRequest models.BidRequest
 	err := json.NewDecoder(r.Body).Decode(&bidRequest)
 	if err != nil {
@@ -28,8 +28,21 @@ func CreateBidHandler(w http.ResponseWriter, r *http.Request) {
 	if validateBidRequest(w, &bidRequest) {
 		return
 	}
+	///
+	if bidRequest.AuthorType == models.AuthorTypeOrganization {
+		respondWithError(w, http.StatusForbidden, "Организация не может создать предложения")
+	}
+	////
+	organizationID, hasOrganization, err := database.GetUserOrganization(bidRequest.AuthorID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Ошибка с база данными")
+		return
+	}
+	if !hasOrganization {
+		respondWithError(w, http.StatusForbidden, "Пользователь не связан с организацией")
+	}
+	////
 
-	// Проверяем, существует ли тендер с данным ID
 	tender, err := database.GetTenderByID(bidRequest.TenderID)
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -39,21 +52,26 @@ func CreateBidHandler(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusInternalServerError, "Ошибка при получении тендера")
 		return
 	}
+	////
+	if database.CheckUserOrganizationResponsibility(bidRequest.AuthorID, tender.OrganizationID) {
+		respondWithError(w, http.StatusForbidden, "Пользователь не может создать предложение для тендера, принадлежащего его организации")
+	}
 
 	if tender.Status != string(models.Published) {
 		respondWithError(w, http.StatusForbidden, "Тендер ещё не опубликован или закрыт")
 		return
 	}
-
+	////
 	// Создаем новое предложение (bid)
 	bid := models.Bid{
-		Name:        bidRequest.Name,
-		Description: bidRequest.Description,
-		TenderID:    bidRequest.TenderID,
-		AuthorType:  bidRequest.AuthorType,
-		AuthorID:    bidRequest.AuthorID,
-		Status:      models.Created,
-		Version:     1,
+		Name:           bidRequest.Name,
+		Description:    bidRequest.Description,
+		Status:         models.Created,
+		TenderID:       bidRequest.TenderID,
+		AuthorType:     bidRequest.AuthorType,
+		AuthorID:       bidRequest.AuthorID,
+		OrganizationID: organizationID,
+		Version:        1,
 	}
 
 	// Сохраняем предложение в базу данных
@@ -143,93 +161,90 @@ func GetUserBidsHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(bids)
 }
 
-
 func GetBidsForTenderHandler(w http.ResponseWriter, r *http.Request) {
-    // Проверка метода запроса
-    if r.Method != http.MethodGet {
-        respondWithError(w, http.StatusMethodNotAllowed, "Метод не поддерживается")
-        return
-    }
+	// Проверка метода запроса
+	if r.Method != http.MethodGet {
+		respondWithError(w, http.StatusMethodNotAllowed, "Метод не поддерживается")
+		return
+	}
 
-    // Получаем параметры из URL
-    tenderID := chi.URLParam(r, "tenderId")
-    username := r.URL.Query().Get("username")
+	// Получаем параметры из URL
+	tenderID := chi.URLParam(r, "tenderId")
+	username := r.URL.Query().Get("username")
 
-    // Проверяем, заданы ли обязательные параметры
-    if tenderID == "" || username == "" {
-        respondWithError(w, http.StatusBadRequest, "Отсутствуют обязательные параметры: tenderId или username")
-        return
-    }
+	// Проверяем, заданы ли обязательные параметры
+	if tenderID == "" || username == "" {
+		respondWithError(w, http.StatusBadRequest, "Отсутствуют обязательные параметры: tenderId или username")
+		return
+	}
 
-    // Получаем параметры пагинации
-    limitParam := r.URL.Query().Get("limit")
-    offsetParam := r.URL.Query().Get("offset")
-    limit := 5  // Значение по умолчанию
-    offset := 0 // Значение по умолчанию
+	// Получаем параметры пагинации
+	limitParam := r.URL.Query().Get("limit")
+	offsetParam := r.URL.Query().Get("offset")
+	limit := 5  // Значение по умолчанию
+	offset := 0 // Значение по умолчанию
 
-    // Парсим limit и offset
-    if limitParam != "" {
-        if parsedLimit, err := strconv.Atoi(limitParam); err == nil && parsedLimit > 0 {
-            limit = parsedLimit
-        } else {
-            respondWithError(w, http.StatusBadRequest, "Некорректное значение limit")
-            return
-        }
-    }
-    if offsetParam != "" {
-        if parsedOffset, err := strconv.Atoi(offsetParam); err == nil && parsedOffset >= 0 {
-            offset = parsedOffset
-        } else {
-            respondWithError(w, http.StatusBadRequest, "Некорректное значение offset")
-            return
-        }
-    }
+	// Парсим limit и offset
+	if limitParam != "" {
+		if parsedLimit, err := strconv.Atoi(limitParam); err == nil && parsedLimit > 0 {
+			limit = parsedLimit
+		} else {
+			respondWithError(w, http.StatusBadRequest, "Некорректное значение limit")
+			return
+		}
+	}
+	if offsetParam != "" {
+		if parsedOffset, err := strconv.Atoi(offsetParam); err == nil && parsedOffset >= 0 {
+			offset = parsedOffset
+		} else {
+			respondWithError(w, http.StatusBadRequest, "Некорректное значение offset")
+			return
+		}
+	}
 
 	userExists, err := database.CheckUserExists(username)
-    if err != nil {
-        respondWithError(w, http.StatusInternalServerError, "Ошибка проверки пользователя")
-        return
-    }
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Ошибка проверки пользователя")
+		return
+	}
 
-    if !userExists {
-        respondWithError(w, http.StatusUnauthorized, "Пользователь не существует")
-        return
-    }
-	
-    // Проверяем, существует ли тендер
-    tender, err := database.GetTenderByID(tenderID)
-    if err != nil {
-        if err == pgx.ErrNoRows {
-            respondWithError(w, http.StatusNotFound, "Тендер не найден")
-            return
-        }
-        respondWithError(w, http.StatusInternalServerError, "Ошибка при получении тендера")
-        return
-    }
+	if !userExists {
+		respondWithError(w, http.StatusUnauthorized, "Пользователь не существует")
+		return
+	}
 
-    // Проверяем права пользователя
-    if !database.CheckUserOrganizationResponsibility(username, tender.OrganizationID) {
-        respondWithError(w, http.StatusForbidden, "Недостаточно прав для выполнения действия")
-        return
-    }
+	// Проверяем, существует ли тендер
+	tender, err := database.GetTenderByID(tenderID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			respondWithError(w, http.StatusNotFound, "Тендер не найден")
+			return
+		}
+		respondWithError(w, http.StatusInternalServerError, "Ошибка при получении тендера")
+		return
+	}
 
+	// Проверяем права пользователя
+	if !database.CheckUserOrganizationResponsibility(username, tender.OrganizationID) {
+		respondWithError(w, http.StatusForbidden, "Недостаточно прав для выполнения действия")
+		return
+	}
 
-    // Получаем список предложений для указанного тендера
-    bids, err := database.GetBidsByTenderID(tenderID, limit, offset)
-    if err != nil {
-        respondWithError(w, http.StatusInternalServerError, "Ошибка при получении предложений")
-        return
-    }
+	// Получаем список предложений для указанного тендера
+	bids, err := database.GetBidsByTenderID(tenderID, limit, offset)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Ошибка при получении предложений")
+		return
+	}
 
-    // Если предложений нет, возвращаем 404
-    if len(bids) == 0 {
-        respondWithError(w, http.StatusNotFound, "Предложения не найдены")
-        return
-    }
+	// Если предложений нет, возвращаем 404
+	if len(bids) == 0 {
+		respondWithError(w, http.StatusNotFound, "Предложения не найдены")
+		return
+	}
 
-    // Возвращаем список предложений
-    w.Header().Set("Content-Type", "application/json")
-    w.WriteHeader(http.StatusOK)
-    json.NewEncoder(w).Encode(bids)
+	// Возвращаем список предложений
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(bids)
 }
-

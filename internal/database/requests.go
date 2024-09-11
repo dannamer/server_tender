@@ -11,20 +11,42 @@ import (
 )
 
 // Функция проверяет, является ли пользователь ответственным за организацию
-func CheckUserOrganizationResponsibility(username string, organizationID string) bool {
+// func CheckUserOrganizationResponsibility(username string, organizationID string) bool {
+// 	var exists bool
+
+// 	query := `
+// 		SELECT EXISTS (
+// 			SELECT 1 
+// 			FROM organization_responsible AS or
+// 			JOIN employee AS e ON or.user_id = e.id
+// 			WHERE e.username = $1 AND or.organization_id = $2
+// 		)
+// 	`
+
+// 	// Выполняем запрос к базе данных
+// 	err := dbConn.QueryRow(context.Background(), query, username, organizationID).Scan(&exists)
+// 	if err != nil {
+// 		log.Printf("Ошибка при проверке прав пользователя: %v\n", err)
+// 		return false
+// 	}
+
+// 	// Возвращаем результат проверки
+// 	return exists
+// }
+
+func CheckUserOrganizationResponsibility(userID string, organizationID string) bool {
 	var exists bool
 
 	query := `
 		SELECT EXISTS (
 			SELECT 1 
 			FROM organization_responsible AS or
-			JOIN employee AS e ON or.user_id = e.id
-			WHERE e.username = $1 AND or.organization_id = $2
+			WHERE or.user_id = $1 AND or.organization_id = $2
 		)
 	`
 
 	// Выполняем запрос к базе данных
-	err := dbConn.QueryRow(context.Background(), query, username, organizationID).Scan(&exists)
+	err := dbConn.QueryRow(context.Background(), query, userID, organizationID).Scan(&exists)
 	if err != nil {
 		log.Printf("Ошибка при проверке прав пользователя: %v\n", err)
 		return false

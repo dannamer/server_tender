@@ -4,6 +4,8 @@ import (
 	"context"
 	"tender-service/internal/models"
 	"time"
+	// "fmt"
+	"github.com/jackc/pgx/v4"
 )
 
 func EmployeeExists(employeeID string) (bool, error) {
@@ -39,12 +41,12 @@ func SaveBid(bid *models.Bid) error {
 	defer cancel() // Отмена контекста после завершения функции
 
 	query := `
-        INSERT INTO bids (id, name, description, status, tender_id, author_type, author_id, version, created_at)
-        VALUES (uuid_generate_v4(), $1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
+        INSERT INTO bids (id, name, description, status, tender_id, author_type, author_id, organization_id, version, created_at)
+        VALUES (uuid_generate_v4(), $1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
         RETURNING id, created_at
     `
 	// Выполняем запрос и захватываем автоматически сгенерированные поля id и created_at
-	err := dbConn.QueryRow(ctx, query, bid.Name, bid.Description, bid.Status, bid.TenderID, bid.AuthorType, bid.AuthorID, bid.Version).
+	err := dbConn.QueryRow(ctx, query, bid.Name, bid.Description, bid.Status, bid.TenderID, bid.AuthorType, bid.AuthorID, bid.OrganizationID, bid.Version).
 		Scan(&bid.ID, &bid.CreatedAt)
 
 	return err
@@ -124,4 +126,31 @@ func GetBidsByTenderID(tenderID string, limit, offset int) ([]models.BidResponse
     }
 
     return bids, nil
+}
+
+
+func GetUserOrganization(userID string) (string, bool, error) {
+    var organizationID string
+
+    query := `
+        SELECT organization_id 
+        FROM organization_responsible 
+        WHERE user_id = $1
+        LIMIT 1
+    `
+
+    // Выполняем запрос к базе данных
+    err := dbConn.QueryRow(context.Background(), query, userID).Scan(&organizationID)
+    
+    if err != nil {
+        if err == pgx.ErrNoRows {
+            // Если записи не найдено, возвращаем false
+            return "", false, nil
+        }
+        // Возвращаем ошибку, если что-то пошло не так
+        return "", false, err
+    }
+
+    // Если организация найдена, возвращаем её ID и true
+    return organizationID, true, nil
 }
