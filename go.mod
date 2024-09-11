@@ -2,7 +2,12 @@ module tender-service
 
 go 1.23
 
-require github.com/jackc/pgx/v4 v4.18.3
+require (
+	github.com/go-chi/chi/v5 v5.1.0
+	github.com/google/uuid v1.6.0
+	github.com/jackc/pgx/v4 v4.18.3
+	github.com/lib/pq v1.10.9
+)
 
 require (
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect

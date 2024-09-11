@@ -2,14 +2,47 @@ package models
 
 import "time"
 
+type AuthorType string
+type Status string
+
+const (
+	AuthorTypeOrganization AuthorType = "Organization"
+	AuthorTypeUser         AuthorType = "User"
+)
+
+const (
+	Created   Status = "Created"
+	Published Status = "Published"
+	Canceled  Status = "Canceled"
+)
+
+
 type Bid struct {
-	ID              int       `json:"id"`
-	Name            string    `json:"name"`
-	Description     string    `json:"description"`
-	Status          string    `json:"status"`
-	TenderID        int       `json:"tender_id"`
-	OrganizationID  int       `json:"organization_id"`
-	CreatorUsername string    `json:"creator_username"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
+	ID          string     `json:"id"`
+	Name        string     `json:"name"`
+	Description string     `json:"description"`
+	Status      Status     `json:"status"`
+	TenderID    string     `json:"tenderId"`
+	AuthorType  AuthorType `json:"authorType"`
+	AuthorID    string     `json:"authorId"`
+	Version     int        `json:"version"`
+	CreatedAt   time.Time  `json:"createdAt"`
+}
+
+type BidResponse struct {
+	ID          string     `json:"id"`
+	Name        string     `json:"name"`
+	Status      Status     `json:"status"`
+	AuthorType  AuthorType `json:"authorType"`
+	AuthorID    string     `json:"authorId"`
+	Version     int        `json:"version"`
+	CreatedAt   time.Time  `json:"createdAt"`
+}
+
+type BidRequest struct {
+	Name        string     `json:"name"`
+	Description string     `json:"description"`
+	TenderID    string     `json:"tenderId"`
+	AuthorType  AuthorType `json:"authorType"`
+	AuthorID    string     `json:"authorId"`
 }

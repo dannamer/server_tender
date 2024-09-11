@@ -14,7 +14,7 @@
 # ENTRYPOINT ["java", "-XX:+UnlockExperimentalVMOptions", "-XX:+UseCGroupMemoryLimitForHeap", "-Djava.security.egd=file:/dev/./urandom","-jar","/app/spring-boot-application.jar"]
 
 # Используем официальный образ Golang для сборки
-FROM golang:1.18-alpine AS build
+FROM golang:1.23-alpine AS build
 
 # Устанавливаем рабочую директорию внутри контейнера
 WORKDIR /app

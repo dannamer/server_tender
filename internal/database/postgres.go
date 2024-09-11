@@ -4,16 +4,36 @@ import (
 	"context"
 	"github.com/jackc/pgx/v4"
 	"log"
-	"os"
+	"fmt"
+	"tender-service/config"
+
 )
 
 var dbConn *pgx.Conn
 
-func ConnectPostgres() {
-	var err error
-	dbConn, err = pgx.Connect(context.Background(), os.Getenv("POSTGRES_CONN"))
-	if err != nil {
-		log.Fatalf("Не удалось подключиться к базе данных: %v\n", err)
+func ConnectPostgres() (*pgx.Conn, error) {
+	// Получаем строку подключения из переменной окружения
+	connStr := config.LoadConfig().PostgresConn
+
+	// Проверка наличия строки подключения
+	if connStr == "" {
+		log.Println("Переменная окружения POSTGRES_CONN не установлена")
+		return nil, fmt.Errorf("переменная окружения POSTGRES_CONN не установлена")
 	}
+
+	// Подключаемся к базе данных
+	conn, err := pgx.Connect(context.Background(), connStr)
+	if err != nil {
+		// Логируем ошибку, но не завершаем выполнение программы
+		log.Printf("Не удалось подключиться к базе данных: %v\n", err)
+		return nil, err
+	}
+
+	// Успешное подключение
 	log.Println("Успешное подключение к базе данных")
+
+	// Сохраняем соединение в глобальную переменную
+	dbConn = conn
+
+	return dbConn, nil
 }
