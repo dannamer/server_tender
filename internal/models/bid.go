@@ -4,6 +4,7 @@ import "time"
 
 type AuthorType string
 type Status string
+type Сoordination string
 
 const (
 	AuthorTypeOrganization AuthorType = "Organization"
@@ -16,17 +17,43 @@ const (
 	Canceled  Status = "Canceled"
 )
 
+const (
+	Expectation        Сoordination = "Expectation"        // Ожидание решения
+	Approved           Сoordination = "Approved"           // Одобрено
+	Rejected           Сoordination = "Rejected"           // Отклонено
+	RejectedByConflict Сoordination = "RejectedByConflict" // Отклонено из-за одобрения тендера с другим предложением
+)
+
+// версия 1
 type Bid struct {
-	ID             string     `json:"id"`
-	Name           string     `json:"name"`
-	Description    string     `json:"description"`
-	Status         Status     `json:"status"`
-	TenderID       string     `json:"tenderId"`
-	AuthorType     AuthorType `json:"authorType"`
-	AuthorID       string     `json:"authorId"`
-	OrganizationID string     `json:"OrganizationId"`
-	Version        int        `json:"version"`
-	CreatedAt      time.Time  `json:"createdAt"`
+	ID             string
+	Name           string
+	Description    string
+	Status         Status
+	TenderID       string
+	AuthorType     AuthorType
+	AuthorID       string
+	OrganizationID string
+	Version        int
+	Feedback       []Feedback
+	Сoordination   Сoordination
+	UserDecision   []UserDecision
+	CreatedAt      time.Time
+}
+
+type UserDecision struct {
+	ID         string
+	UserID     string
+	BidID      string
+	Decision   Сoordination
+	Created_at time.Time
+}
+type Feedback struct {
+	ID          string
+	UserID      string
+	BidID       string
+	BidFeedback string
+	CreatedAt   time.Time
 }
 
 type BidResponse struct {
@@ -36,7 +63,7 @@ type BidResponse struct {
 	AuthorType AuthorType `json:"authorType"`
 	AuthorID   string     `json:"authorId"`
 	Version    int        `json:"version"`
-	CreatedAt  time.Time  `json:"createdAt"`
+	CreatedAt  string     `json:"createdAt"`
 }
 
 type BidRequest struct {

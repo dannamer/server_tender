@@ -2,14 +2,17 @@ package handlers
 
 import (
 	"encoding/json"
+	// "fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v4"
 	"net/http"
 	"strconv"
 	"tender-service/internal/database"
 	"tender-service/internal/models"
+	"time"
 )
 
+// исправить
 func CreateBidHandler(w http.ResponseWriter, r *http.Request) {
 	// Проверяем, что запрос - POST
 	if r.Method != http.MethodPost {
@@ -22,10 +25,6 @@ func CreateBidHandler(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&bidRequest)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Неверный формат данных")
-		return
-	}
-
-	if validateBidRequest(w, &bidRequest) {
 		return
 	}
 	///
@@ -57,7 +56,7 @@ func CreateBidHandler(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusForbidden, "Пользователь не может создать предложение для тендера, принадлежащего его организации")
 	}
 
-	if tender.Status != string(models.Published) {
+	if tender.Status != models.Published {
 		respondWithError(w, http.StatusForbidden, "Тендер ещё не опубликован или закрыт")
 		return
 	}
@@ -87,7 +86,7 @@ func CreateBidHandler(w http.ResponseWriter, r *http.Request) {
 		AuthorType: bid.AuthorType,
 		AuthorID:   bid.AuthorID,
 		Version:    bid.Version,
-		CreatedAt:  bid.CreatedAt,
+		CreatedAt:  bid.CreatedAt.Format(time.RFC3339),
 	}
 	// Возвращаем успешный ответ с информацией о созданном предложении
 	w.Header().Set("Content-Type", "application/json")
@@ -95,6 +94,7 @@ func CreateBidHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(bidResponse)
 }
 
+// исправить
 // GetUserBidsHandler обработчик для получения списка предложений текущего пользователя
 func GetUserBidsHandler(w http.ResponseWriter, r *http.Request) {
 	// Проверяем метод запроса
@@ -160,91 +160,255 @@ func GetUserBidsHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(bids)
 }
+//исправить
+// func GetBidsForTenderHandler(w http.ResponseWriter, r *http.Request) {
+// 	// Проверка метода запроса
+// 	if r.Method != http.MethodGet {
+// 		respondWithError(w, http.StatusMethodNotAllowed, "Метод не поддерживается")
+// 		return
+// 	}
 
-func GetBidsForTenderHandler(w http.ResponseWriter, r *http.Request) {
-	// Проверка метода запроса
+// 	// Получаем параметры из URL
+// 	tenderID := chi.URLParam(r, "tenderId")
+// 	username := r.URL.Query().Get("username")
+
+// 	// Проверяем, заданы ли обязательные параметры
+// 	if tenderID == "" || username == "" {
+// 		respondWithError(w, http.StatusBadRequest, "Отсутствуют обязательные параметры: tenderId или username")
+// 		return
+// 	}
+
+// 	// Получаем параметры пагинации
+// 	limitParam := r.URL.Query().Get("limit")
+// 	offsetParam := r.URL.Query().Get("offset")
+// 	limit := 5  // Значение по умолчанию
+// 	offset := 0 // Значение по умолчанию
+
+// 	// Парсим limit и offset
+// 	if limitParam != "" {
+// 		if parsedLimit, err := strconv.Atoi(limitParam); err == nil && parsedLimit > 0 {
+// 			limit = parsedLimit
+// 		} else {
+// 			respondWithError(w, http.StatusBadRequest, "Некорректное значение limit")
+// 			return
+// 		}
+// 	}
+// 	if offsetParam != "" {
+// 		if parsedOffset, err := strconv.Atoi(offsetParam); err == nil && parsedOffset >= 0 {
+// 			offset = parsedOffset
+// 		} else {
+// 			respondWithError(w, http.StatusBadRequest, "Некорректное значение offset")
+// 			return
+// 		}
+// 	}
+
+// 	userExists, err := database.CheckUserExists(username)
+// 	if err != nil {
+// 		respondWithError(w, http.StatusInternalServerError, "Ошибка проверки пользователя")
+// 		return
+// 	}
+
+// 	if !userExists {
+// 		respondWithError(w, http.StatusUnauthorized, "Пользователь не существует")
+// 		return
+// 	}
+
+// 	// Проверяем, существует ли тендер
+// 	tender, err := database.GetTenderByID(tenderID)
+// 	if err != nil {
+// 		if err == pgx.ErrNoRows {
+// 			respondWithError(w, http.StatusNotFound, "Тендер не найден")
+// 			return
+// 		}
+// 		respondWithError(w, http.StatusInternalServerError, "Ошибка при получении тендера")
+// 		return
+// 	}
+
+// 	// Проверяем права пользователя
+// 	if !database.CheckUserOrganizationResponsibility(username, tender.OrganizationID) {
+// 		respondWithError(w, http.StatusForbidden, "Недостаточно прав для выполнения действия")
+// 		return
+// 	}
+
+// 	// Получаем список предложений для указанного тендера
+// 	bids, err := database.GetBidsByTenderID(tenderID, limit, offset)
+// 	if err != nil {
+// 		respondWithError(w, http.StatusInternalServerError, "Ошибка при получении предложений")
+// 		return
+// 	}
+
+// 	// Если предложений нет, возвращаем 404
+// 	if len(bids) == 0 {
+// 		respondWithError(w, http.StatusNotFound, "Предложения не найдены")
+// 		return
+// 	}
+
+// 	// Возвращаем список предложений
+// 	w.Header().Set("Content-Type", "application/json")
+// 	w.WriteHeader(http.StatusOK)
+// 	json.NewEncoder(w).Encode(bids)
+// }
+
+// готово
+func SubmitBidDecisionHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPut {
+		respondWithError(w, http.StatusMethodNotAllowed, "Метод не поддерживается")
+		return
+	}
+	bidID := chi.URLParam(r, "bidId")
+	decision := models.Сoordination(r.URL.Query().Get("decision"))
+	username := r.URL.Query().Get("username")
+	if validateID(w, bidID, "ID предложения") || validateDecision(w, decision) || validateUsername(w, username) {
+		return
+	}
+	user, res := getAndValidateUserByUsername(w, username)
+	if res {
+		return
+	}
+	bid, res := getAndValidateBidByID(w, bidID)
+	if res {
+		return
+	}
+	tender, res := getAndValidateTenderByID(w, bid.TenderID)
+	if res {
+		return
+	}
+	if !database.CheckUserOrganizationResponsibility(user.ID, tender.OrganizationID) {
+		respondWithError(w, http.StatusForbidden, "пользователь не имеет ответственности к организации стенда")
+	}
+	if bid.Status != models.Published {
+		respondWithError(w, http.StatusForbidden, "Предложение не может быть обработано, так как его статус находится в состоянии 'Создание' или 'Закрыто'. Решение может быть отправлено только для предложений в статусе 'Публичное'.")
+		return
+	}
+	if tender.Status != models.Published {
+		respondWithError(w, http.StatusForbidden, "Тендер не может быть обработан, так как он находится в статусе 'Создание' или 'Закрыт'. Для отправление решении тендер должен находиться в статусе 'Публичный'.")
+		return
+	}
+	// записываем решение
+	userDecision := &models.UserDecision{
+		UserID:   user.ID,
+		BidID:    bid.ID,
+		Decision: decision,
+	}
+	if database.CheckUserDecisionExists(userDecision) {
+		respondWithError(w, http.StatusForbidden, "пользователь раннее давал свое решение")
+		return
+	}
+	if err := database.SaveUserDecision(userDecision); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Ошибка при сохранении решения")
+		return
+	}
+	bid.UserDecision = append(bid.UserDecision, *userDecision)
+	if decision == models.Rejected {
+		bid.Сoordination = models.Rejected
+		bid.Status = models.Canceled
+	} else if len(bid.UserDecision) >= 3 {
+		bid.Сoordination = models.Approved
+		bid.Status = models.Canceled
+		bids, err := database.GetBidsByTenderIDWithExpectation(tender.ID)
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, "Ошибка при получении предложений")
+			return
+		}
+		for _, bida := range bids {
+			bida.Status = models.Canceled
+			bida.Сoordination = models.RejectedByConflict
+			if err := database.UpdateBid(&bida); err != nil {
+				respondWithError(w, http.StatusInternalServerError, "Ошибка при обновлении статуса предложения")
+				return
+			}
+		}
+	}
+	if err := database.UpdateBid(bid); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Ошибка при обновлении статуса предложения")
+		return
+	}
+
+	bidResponse := &models.BidResponse{
+		ID:         bid.ID,
+		Name:       bid.Name,
+		Status:     bid.Status,
+		AuthorType: bid.AuthorType,
+		AuthorID:   bid.AuthorID,
+		Version:    bid.Version,
+		CreatedAt:  bid.CreatedAt.Format(time.RFC3339),
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(bidResponse)
+}
+//готово
+func GetBidStatusHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		respondWithError(w, http.StatusMethodNotAllowed, "Метод не поддерживается")
 		return
 	}
 
-	// Получаем параметры из URL
-	tenderID := chi.URLParam(r, "tenderId")
+	bidID := chi.URLParam(r, "bidId")
 	username := r.URL.Query().Get("username")
 
-	// Проверяем, заданы ли обязательные параметры
-	if tenderID == "" || username == "" {
-		respondWithError(w, http.StatusBadRequest, "Отсутствуют обязательные параметры: tenderId или username")
+	if validateID(w, bidID, "ID предложения") || validateUsername(w, username) {
 		return
 	}
-
-	// Получаем параметры пагинации
-	limitParam := r.URL.Query().Get("limit")
-	offsetParam := r.URL.Query().Get("offset")
-	limit := 5  // Значение по умолчанию
-	offset := 0 // Значение по умолчанию
-
-	// Парсим limit и offset
-	if limitParam != "" {
-		if parsedLimit, err := strconv.Atoi(limitParam); err == nil && parsedLimit > 0 {
-			limit = parsedLimit
-		} else {
-			respondWithError(w, http.StatusBadRequest, "Некорректное значение limit")
-			return
-		}
-	}
-	if offsetParam != "" {
-		if parsedOffset, err := strconv.Atoi(offsetParam); err == nil && parsedOffset >= 0 {
-			offset = parsedOffset
-		} else {
-			respondWithError(w, http.StatusBadRequest, "Некорректное значение offset")
-			return
-		}
-	}
-
-	userExists, err := database.CheckUserExists(username)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Ошибка проверки пользователя")
+	user, res := getAndValidateUserByUsername(w, username)
+	if res {
 		return
 	}
-
-	if !userExists {
-		respondWithError(w, http.StatusUnauthorized, "Пользователь не существует")
+	bid, res := getAndValidateBidByID(w, bidID)
+	if res {
 		return
 	}
-
-	// Проверяем, существует ли тендер
-	tender, err := database.GetTenderByID(tenderID)
-	if err != nil {
-		if err == pgx.ErrNoRows {
-			respondWithError(w, http.StatusNotFound, "Тендер не найден")
-			return
-		}
-		respondWithError(w, http.StatusInternalServerError, "Ошибка при получении тендера")
-		return
+	if !database.CheckUserOrganizationResponsibility(user.ID, bid.OrganizationID) {
+		respondWithError(w, http.StatusForbidden, "пользователь не имеет ответственности к организации предложения")
 	}
 
-	// Проверяем права пользователя
-	if !database.CheckUserOrganizationResponsibility(username, tender.OrganizationID) {
-		respondWithError(w, http.StatusForbidden, "Недостаточно прав для выполнения действия")
-		return
+	response := map[string]string{
+		"status": string(bid.Status),
 	}
 
-	// Получаем список предложений для указанного тендера
-	bids, err := database.GetBidsByTenderID(tenderID, limit, offset)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Ошибка при получении предложений")
-		return
-	}
-
-	// Если предложений нет, возвращаем 404
-	if len(bids) == 0 {
-		respondWithError(w, http.StatusNotFound, "Предложения не найдены")
-		return
-	}
-
-	// Возвращаем список предложений
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(bids)
+	json.NewEncoder(w).Encode(response)
+}
+//готово
+func UpdateBidStatusHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPut {
+		respondWithError(w, http.StatusMethodNotAllowed, "Метод не поддерживается")
+		return
+	}
+
+	bidID := chi.URLParam(r, "bidId")
+	newStatus := r.URL.Query().Get("status")
+	username := r.URL.Query().Get("username")
+	if validateID(w, bidID, "ID предложения") || validateStatus(w, models.Status(newStatus)) || validateUsername(w, username) {
+		return
+	}
+	user, res := getAndValidateUserByUsername(w, username)
+	if res {
+		return
+	}
+	bid, res := getAndValidateBidByID(w, bidID)
+	if res {
+		return
+	}
+	if !database.CheckUserOrganizationResponsibility(user.ID, bid.OrganizationID) {
+		respondWithError(w, http.StatusForbidden, "Пользователь не имеет отвественности за организацию текущего тендера для изменения статуса")
+		return
+	}
+	bid.Status = models.Status(newStatus)
+	if err := database.UpdateBid(bid); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Ошибка при обновлении статуса тендера")
+		return
+	}
+	bidResponse := &models.BidResponse{
+		ID: bid.ID,
+		Name: bid.Name,
+		Status: bid.Status,
+		AuthorType: bid.AuthorType,
+		AuthorID: bid.AuthorID,
+		Version: bid.Version,
+		CreatedAt: bid.CreatedAt.Format(time.RFC3339),
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(bidResponse)
 }
