@@ -33,7 +33,6 @@ type Bid struct {
 	TenderID       string
 	AuthorType     AuthorType
 	AuthorID       string
-	OrganizationID string
 	Version        int
 	Feedback       []Feedback
 	Сoordination   Сoordination

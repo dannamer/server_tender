@@ -75,6 +75,22 @@ func validateStatus(w http.ResponseWriter, status models.Status) bool {
 	return false
 }
 
+func validateAuthorType(w http.ResponseWriter, authorType models.AuthorType) bool {
+	if authorType == "" {
+		respondWithError(w, http.StatusBadRequest, "Тип автора не может быть пустым")
+		return true
+	}
+	validAuthorTypes := map[models.AuthorType]bool{
+		models.AuthorTypeOrganization: true,
+		models.AuthorTypeUser:         true,
+	}
+	if !validAuthorTypes[authorType] {
+		respondWithError(w, http.StatusBadRequest, "Некорректный тип автора. Допустимые значения: Organization, User")
+		return true
+	}
+	return false
+}
+
 func validateServiceType(w http.ResponseWriter, serviceType models.ServiceType) bool {
 	if serviceType == "" {
 		respondWithError(w, http.StatusBadRequest, "Тип услуги не может быть пустым")
@@ -154,6 +170,32 @@ func getAndValidateUserByUsername(w http.ResponseWriter, username string) (*mode
 	return user, false
 }
 
+func getAndValidateUserByID(w http.ResponseWriter, userID string) (*models.User, bool) {
+	user, err := database.GetUserByID(userID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			respondWithError(w, http.StatusUnauthorized, fmt.Sprintf("Пользователь с ID '%s' не найден", userID))
+			return nil, true
+		}
+		respondWithError(w, http.StatusInternalServerError, "Ошибка при получении данных пользователя")
+		return nil, true
+	}
+	return user, false
+}
+
+func getAndValidateOrganizationByID(w http.ResponseWriter, organizationID string) (*models.Organization, bool) {
+	organization, err := database.GetOrganizationByID(organizationID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			respondWithError(w, http.StatusNotFound, fmt.Sprintf("Организация с ID '%s' не найдена", organizationID))
+			return nil, true
+		}
+		respondWithError(w, http.StatusInternalServerError, "Ошибка при получении данных организации")
+		return nil, true
+	}
+	return organization, false
+}
+
 func getAndValidateTenderByID(w http.ResponseWriter, tenderID string) (*models.Tender, bool) {
 	tender, err := database.GetTenderByID(tenderID)
 	if err != nil {
@@ -218,3 +260,4 @@ func updateTenderFields(w http.ResponseWriter, tenderEditRequest *models.TenderE
 
 	return false
 }
+

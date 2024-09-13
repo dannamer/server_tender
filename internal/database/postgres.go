@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/jackc/pgx/v4"
 	"log"
-	"fmt"
+	// "fmt"
 	// "tender-service/config"
 
 )
@@ -13,13 +13,9 @@ var dbConn *pgx.Conn
 
 func ConnectPostgres() (*pgx.Conn, error) {
 	// Получаем строку подключения из переменной окружения
-	connStr := "postgresql://your_user:your_password@localhost:5432/your_database"
+	connStr := "postgresql://your_user:your_password@192.168.0.11:5432/your_database"
 
 	// Проверка наличия строки подключения
-	if connStr == "" {
-		log.Println("Переменная окружения POSTGRES_CONN не установлена")
-		return nil, fmt.Errorf("переменная окружения POSTGRES_CONN не установлена")
-	}
 
 	// Подключаемся к базе данных
 	conn, err := pgx.Connect(context.Background(), connStr)

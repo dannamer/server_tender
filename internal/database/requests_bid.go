@@ -43,12 +43,12 @@ func SaveBid(bid *models.Bid) error {
 	defer cancel() // Отмена контекста после завершения функции
 
 	query := `
-        INSERT INTO bids (id, name, description, status, tender_id, author_type, author_id, organization_id, version, created_at)
-        VALUES (uuid_generate_v4(), $1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
+        INSERT INTO bids (id, name, description, status, tender_id, author_type, author_id, version, created_at)
+        VALUES (uuid_generate_v4(), $1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
         RETURNING id, created_at
     `
 	// Выполняем запрос и захватываем автоматически сгенерированные поля id и created_at
-	err := dbConn.QueryRow(ctx, query, bid.Name, bid.Description, bid.Status, bid.TenderID, bid.AuthorType, bid.AuthorID, bid.OrganizationID, bid.Version).
+	err := dbConn.QueryRow(ctx, query, bid.Name, bid.Description, bid.Status, bid.TenderID, bid.AuthorType, bid.AuthorID, bid.Version).
 		Scan(&bid.ID, &bid.CreatedAt)
 
 	return err
@@ -64,7 +64,7 @@ func GetBidByID(bidID string) (*models.Bid, error) {
 
 	// Запрос на получение основных данных предложения
 	query := `
-		SELECT id, name, description, status, tender_id, author_type, author_id, organization_id, version, created_at
+		SELECT id, name, description, status, tender_id, author_type, author_id, version, created_at
 		FROM bids
 		WHERE id = $1
 	`
@@ -78,7 +78,6 @@ func GetBidByID(bidID string) (*models.Bid, error) {
 		&bid.TenderID,
 		&bid.AuthorType,
 		&bid.AuthorID,
-		&bid.OrganizationID,
 		&bid.Version,
 		&bid.CreatedAt,
 	)
@@ -284,75 +283,6 @@ func SaveUserDecision(userDecision *models.UserDecision) error {
 		Scan(&userDecision.ID, &userDecision.Created_at)
 	return err
 }
-// func SaveBidDecision(bidID, userID string, decision models.Сoordination) (*models.UserDecision, error) {
-// 	// Начинаем транзакцию для сохранения решения
-// 	tx, err := dbConn.Begin(context.Background())
-// 	if err != nil {
-// 		return nil, fmt.Errorf("ошибка начала транзакции: %v", err)
-// 	}
-// 	defer tx.Rollback(context.Background()) // Откат транзакции в случае ошибки
-
-// 	// Проверяем, существует ли запись о решении пользователя по данному предложению
-// 	queryCheck := `
-// 		SELECT EXISTS (
-// 			SELECT 1 FROM bid_decisions WHERE bid_id = $1 AND user_id = $2
-// 		)
-// 	`
-// 	var exists bool
-// 	err = tx.QueryRow(context.Background(), queryCheck, bidID, userID).Scan(&exists)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("ошибка при проверке существования решения: %v", err)
-// 	}
-
-// 	if exists {
-// 		// Если решение уже существует, обновляем его
-// 		queryUpdate := `
-// 			UPDATE bid_decisions
-// 			SET decision = $1, created_at = CURRENT_TIMESTAMP
-// 			WHERE bid_id = $2 AND user_id = $3
-// 		`
-// 		_, err = tx.Exec(context.Background(), queryUpdate, decision, bidID, userID)
-// 		if err != nil {
-// 			return nil, fmt.Errorf("ошибка при обновлении решения: %v", err)
-// 		}
-// 	} else {
-// 		// Если решения нет, добавляем новую запись
-// 		queryInsert := `
-// 			INSERT INTO bid_decisions (id, bid_id, user_id, decision, created_at)
-// 			VALUES (uuid_generate_v4(), $1, $2, $3, CURRENT_TIMESTAMP)
-// 		`
-// 		_, err = tx.Exec(context.Background(), queryInsert, bidID, userID, decision)
-// 		if err != nil {
-// 			return nil, fmt.Errorf("ошибка при сохранении решения: %v", err)
-// 		}
-// 	}
-
-// 	// Извлекаем запись о решении для возврата
-// 	querySelect := `
-// 		SELECT id, bid_id, user_id, decision, created_at
-// 		FROM bid_decisions
-// 		WHERE bid_id = $1 AND user_id = $2
-// 	`
-// 	var userDecision models.UserDecision
-// 	err = tx.QueryRow(context.Background(), querySelect, bidID, userID).Scan(
-// 		&userDecision.ID,
-// 		&userDecision.BidID,
-// 		&userDecision.UserID,
-// 		&userDecision.Decision,
-// 		&userDecision.Created_at,
-// 	)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("ошибка при извлечении данных решения: %v", err)
-// 	}
-
-// 	// Завершаем транзакцию
-// 	err = tx.Commit(context.Background())
-// 	if err != nil {
-// 		return nil, fmt.Errorf("ошибка завершения транзакции: %v", err)
-// 	}
-
-// 	return &userDecision, nil
-// }
 
 func GetBidsByTenderIDWithExpectation(tenderID string) ([]models.Bid, error) {
 	// Создаем список для хранения найденных предложений
@@ -360,7 +290,7 @@ func GetBidsByTenderIDWithExpectation(tenderID string) ([]models.Bid, error) {
 
 	// SQL-запрос для поиска предложений по tender_id и состоянию Expectation
 	query := `
-		SELECT id, name, description, status, tender_id, author_type, author_id, organization_id, version, coordination, created_at
+		SELECT id, name, description, status, tender_id, author_type, author_id, version, coordination, created_at
 		FROM bids
 		WHERE tender_id = $1 AND coordination = $2
 	`
@@ -383,7 +313,6 @@ func GetBidsByTenderIDWithExpectation(tenderID string) ([]models.Bid, error) {
 			&bid.TenderID,
 			&bid.AuthorType,
 			&bid.AuthorID,
-			&bid.OrganizationID,
 			&bid.Version,
 			&bid.Сoordination,
 			&bid.CreatedAt,
@@ -407,9 +336,9 @@ func UpdateBid(bid *models.Bid) error {
 	query := `
 		UPDATE bids 
 		SET name = $1, description = $2, status = $3, tender_id = $4, 
-		    author_type = $5, author_id = $6, organization_id = $7, 
-		    version = $8, coordination = $9
-		WHERE id = $10
+		    author_type = $5, author_id = $6, 
+		    version = $7, coordination = $8
+		WHERE id = $9
 	`
 	_, err := dbConn.Exec(context.Background(), query,
 		bid.Name,
@@ -418,10 +347,57 @@ func UpdateBid(bid *models.Bid) error {
 		bid.TenderID,
 		bid.AuthorType,
 		bid.AuthorID,
-		bid.OrganizationID,
 		bid.Version,
 		bid.Сoordination,
 		bid.ID,
 	)
 	return err
+}
+
+
+func GetUserByID(userID string) (*models.User, error) {
+	var user models.User
+
+	query := `
+		SELECT id, username, first_name, last_name, created_at, updated_at
+		FROM employee
+		WHERE id = $1
+	`
+
+	// Выполняем запрос к базе данных
+	err := dbConn.QueryRow(context.Background(), query, userID).Scan(
+		&user.ID,
+		&user.Username,
+		&user.FirstName,
+		&user.LastName,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+func GetOrganizationByID(organizationID string) (*models.Organization, error) {
+	var organization models.Organization
+
+	query := `
+		SELECT id, name, type, created_at, updated_at
+		FROM organization
+		WHERE id = $1
+	`
+	err := dbConn.QueryRow(context.Background(), query, organizationID).Scan(
+		&organization.ID,
+		&organization.Name,
+		&organization.Type,
+		&organization.CreatedAt,
+		&organization.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &organization, nil
 }

@@ -1,4 +1,4 @@
--- Active: 1726178784313@@127.0.0.1@5432@your_database
+-- Active: 1726220107504@@192.168.0.11@5432@your_database
 
 CREATE TABLE tenders (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -31,12 +31,10 @@ CREATE TABLE bids (
     tender_id UUID NOT NULL,
     author_type VARCHAR(50) NOT NULL,
     author_id UUID NOT NULL,
-    organization_id UUID NOT NULL,
     version INT NOT NULL DEFAULT 1,
     coordination VARCHAR(50) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (tender_id) REFERENCES tenders(id) ON DELETE CASCADE,
-    FOREIGN KEY (organization_id) REFERENCES organization(id) ON DELETE CASCADE,
     FOREIGN KEY (author_id) REFERENCES employee(id) ON DELETE CASCADE
 );
 

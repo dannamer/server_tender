@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	// "fmt"
 	"github.com/go-chi/chi/v5"
-	"github.com/jackc/pgx/v4"
+	// "github.com/jackc/pgx/v4"
 	"net/http"
 	"strconv"
 	"tender-service/internal/database"
@@ -14,7 +14,6 @@ import (
 
 // исправить
 func CreateBidHandler(w http.ResponseWriter, r *http.Request) {
-	// Проверяем, что запрос - POST
 	if r.Method != http.MethodPost {
 		respondWithError(w, http.StatusMethodNotAllowed, "Метод не поддерживается")
 		return
@@ -27,53 +26,38 @@ func CreateBidHandler(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "Неверный формат данных")
 		return
 	}
-	///
-	if bidRequest.AuthorType == models.AuthorTypeOrganization {
-		respondWithError(w, http.StatusForbidden, "Организация не может создать предложения")
-	}
-	////
-	organizationID, hasOrganization, err := database.GetUserOrganization(bidRequest.AuthorID)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Ошибка с база данными")
+	if validateAuthorType(w, bidRequest.AuthorType) || validateID(w, bidRequest.AuthorID, "ID автора") || validateID(w, bidRequest.TenderID, "ID тендера") || validateName(w, bidRequest.Name, "предложения") || validateDescription(w, bidRequest.Description, "предложения") {
 		return
 	}
-	if !hasOrganization {
-		respondWithError(w, http.StatusForbidden, "Пользователь не связан с организацией")
-	}
-	////
 
-	tender, err := database.GetTenderByID(bidRequest.TenderID)
-	if err != nil {
-		if err == pgx.ErrNoRows {
-			respondWithError(w, http.StatusNotFound, "Тендер не найден")
+	if bidRequest.AuthorType == models.AuthorTypeOrganization {
+		_, res := getAndValidateOrganizationByID(w, bidRequest.AuthorID)
+		if res {
 			return
 		}
-		respondWithError(w, http.StatusInternalServerError, "Ошибка при получении тендера")
+	} else if _, res := getAndValidateUserByID(w, bidRequest.AuthorID); res {
 		return
 	}
-	////
-	if database.CheckUserOrganizationResponsibility(bidRequest.AuthorID, tender.OrganizationID) {
-		respondWithError(w, http.StatusForbidden, "Пользователь не может создать предложение для тендера, принадлежащего его организации")
+	tender, res := getAndValidateTenderByID(w, bidRequest.TenderID)
+	if res {
+		return
 	}
 
 	if tender.Status != models.Published {
 		respondWithError(w, http.StatusForbidden, "Тендер ещё не опубликован или закрыт")
 		return
 	}
-	////
-	// Создаем новое предложение (bid)
+
 	bid := models.Bid{
-		Name:           bidRequest.Name,
-		Description:    bidRequest.Description,
-		Status:         models.Created,
-		TenderID:       bidRequest.TenderID,
-		AuthorType:     bidRequest.AuthorType,
-		AuthorID:       bidRequest.AuthorID,
-		OrganizationID: organizationID,
-		Version:        1,
+		Name:        bidRequest.Name,
+		Description: bidRequest.Description,
+		Status:      models.Created,
+		TenderID:    bidRequest.TenderID,
+		AuthorType:  bidRequest.AuthorType,
+		AuthorID:    bidRequest.AuthorID,
+		Version:     1,
 	}
 
-	// Сохраняем предложение в базу данных
 	err = database.SaveBid(&bid)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Ошибка при создании предложения")
@@ -160,6 +144,7 @@ func GetUserBidsHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(bids)
 }
+
 //исправить
 // func GetBidsForTenderHandler(w http.ResponseWriter, r *http.Request) {
 // 	// Проверка метода запроса
@@ -337,7 +322,8 @@ func SubmitBidDecisionHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(bidResponse)
 }
-//готово
+
+// готово
 func GetBidStatusHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		respondWithError(w, http.StatusMethodNotAllowed, "Метод не поддерживается")
@@ -358,19 +344,22 @@ func GetBidStatusHandler(w http.ResponseWriter, r *http.Request) {
 	if res {
 		return
 	}
-	if !database.CheckUserOrganizationResponsibility(user.ID, bid.OrganizationID) {
-		respondWithError(w, http.StatusForbidden, "пользователь не имеет ответственности к организации предложения")
+	if bid.AuthorType == models.AuthorTypeOrganization {
+		if !database.CheckUserOrganizationResponsibility(user.ID, bid.AuthorID) {
+			respondWithError(w, http.StatusForbidden, "пользователь не имеет ответственности к организации предложения")
+			return
+		}
+	} else if user.ID == bid.AuthorID {
+		respondWithError(w, http.StatusForbidden, "пользователь не имеет доступа к предложению")
+		return
 	}
 
-	response := map[string]string{
-		"status": string(bid.Status),
-	}
-
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	json.NewEncoder(w).Encode(bid.Status)
 }
-//готово
+
+// готово
 func UpdateBidStatusHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPut {
 		respondWithError(w, http.StatusMethodNotAllowed, "Метод не поддерживается")
@@ -391,8 +380,13 @@ func UpdateBidStatusHandler(w http.ResponseWriter, r *http.Request) {
 	if res {
 		return
 	}
-	if !database.CheckUserOrganizationResponsibility(user.ID, bid.OrganizationID) {
-		respondWithError(w, http.StatusForbidden, "Пользователь не имеет отвественности за организацию текущего тендера для изменения статуса")
+	if bid.AuthorType == models.AuthorTypeOrganization {
+		if !database.CheckUserOrganizationResponsibility(user.ID, bid.AuthorID) {
+			respondWithError(w, http.StatusForbidden, "пользователь не имеет ответственности к организации предложения")
+			return
+		}
+	} else if user.ID == bid.AuthorID {
+		respondWithError(w, http.StatusForbidden, "пользователь не имеет доступа к предложению")
 		return
 	}
 	bid.Status = models.Status(newStatus)
@@ -401,13 +395,13 @@ func UpdateBidStatusHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	bidResponse := &models.BidResponse{
-		ID: bid.ID,
-		Name: bid.Name,
-		Status: bid.Status,
+		ID:         bid.ID,
+		Name:       bid.Name,
+		Status:     bid.Status,
 		AuthorType: bid.AuthorType,
-		AuthorID: bid.AuthorID,
-		Version: bid.Version,
-		CreatedAt: bid.CreatedAt.Format(time.RFC3339),
+		AuthorID:   bid.AuthorID,
+		Version:    bid.Version,
+		CreatedAt:  bid.CreatedAt.Format(time.RFC3339),
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(bidResponse)

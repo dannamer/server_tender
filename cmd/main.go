@@ -26,10 +26,11 @@ func main() {
 	r.Patch("/api/tenders/{tenderId}/edit", handlers.EditTenderHandler) // Редактирование тендера
 	r.Put("/api/tenders/{tenderId}/rollback/{version}", handlers.RollbackTenderHandler) // Откат тендера к версии
 	r.Post("/api/bids/new", handlers.CreateBidHandler)            // Создание нового предложения
-	r.Get("/api/bids/my", handlers.GetUserBidsHandler)           // Получение предложений пользователя
+	// r.Get("/api/bids/my", handlers.GetUserBidsHandler)           // Получение предложений пользователя
 	// r.Get("/api/bids/{tenderId}/list", handlers.GetBidsForTenderHandler) // Получение предложений для тендера
 	r.Get("/api/bids/{bidId}/status", handlers.GetBidStatusHandler)  // Получение статуса предложения
-	r.Put("/api/bids/{bidId}/submit_decision", handlers.SubmitBidDecisionHandler) // Отправка решения по предложению
+	r.Put("/api/bids/{bidId}/status", handlers.UpdateBidStatusHandler)
+	// r.Put("/api/bids/{bidId}/submit_decision", handlers.SubmitBidDecisionHandler) // Отправка решения по предложению
 	
 	address := "0.0.0.0:8080"
 	log.Printf("Сервер запущен по адресу %s", address)

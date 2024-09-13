@@ -6,6 +6,7 @@ import (
 	"github.com/jackc/pgx/v4"
 	"net/http"
 	"strconv"
+	"log"
 	"tender-service/internal/database"
 	"tender-service/internal/models"
 )
@@ -25,7 +26,7 @@ func CreateTenderHandler(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusMethodNotAllowed, "Метод не поддерживается")
 		return
 	}
-
+	log.Println("проверка")
 	var tenderRequest models.TenderRequest
 
 	// Декодируем тело запроса
@@ -70,7 +71,7 @@ func CreateTenderHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(createTenderResponse(&tender))
 }
 
-// вроде как готово
+// готово
 func GetTendersHandler(w http.ResponseWriter, r *http.Request) {
 	// Проверка метода запроса
 	if r.Method != http.MethodGet {
@@ -122,7 +123,7 @@ func GetTendersHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(tenders)
 }
 
-// вроде как готово
+// готово
 func GetUserTendersHandler(w http.ResponseWriter, r *http.Request) {
 	// Проверка метода запроса
 	if r.Method != http.MethodGet {
@@ -132,8 +133,9 @@ func GetUserTendersHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Получаем username из query-параметров
 	username := r.URL.Query().Get("username")
-	if username == "" {
-		respondWithError(w, http.StatusBadRequest, "Отсутствует параметр username")
+	// по openapi у вас username не обязателен, я считаю, что у вас отпечатка
+	user, res := getAndValidateUserByUsername(w, username)
+	if res {
 		return
 	}
 
@@ -164,12 +166,15 @@ func GetUserTendersHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Получаем список тендеров пользователя из базы данных
-	tenders, err := database.GetTendersByUsername(username, limit, offset)
+	tenders, err := database.GetTendersByUsername(user.ID, limit, offset)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Ошибка при получении тендеров пользователя")
 		return
 	}
-
+	if len(tenders) == 0 {
+		respondWithError(w, 404, "Тендеры пользователя не найдены")
+		return
+	}
 	// Возвращаем список тендеров в формате JSON
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -204,8 +209,6 @@ func GetTenderStatusHandler(w http.ResponseWriter, r *http.Request) {
 	// 	respondWithError(w, http.StatusForbidden, "пользователь не имеет ответственности к организации стенда")
 	// }
 
-	// Формируем ответ со статусом тендера
-	// Отправляем успешный ответ с текущим статусом
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(tender.Status)
@@ -286,15 +289,16 @@ func EditTenderHandler(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "Отправлен пустой запрос")
 		return
 	}
-	if saveTenderHistory(w, tender) {
-		return
-	}
-	tender.Version++
-
+	copyTender := *tender
+	
 	if updateTenderFields(w, &tenderEditRequest, tender) {
 		return
 	}
-
+	if saveTenderHistory(w, &copyTender) {
+		return
+	}
+	tender.Version++
+	
 	if err := database.UpdateTender(tender); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Ошибка при обновлении тендера")
 		return
@@ -332,7 +336,7 @@ func RollbackTenderHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !database.CheckUserOrganizationResponsibility(user.ID, tenderID) {
+	if !database.CheckUserOrganizationResponsibility(user.ID, tender.OrganizationID) {
 		respondWithError(w, http.StatusForbidden, "Недостаточно прав для выполнения действия")
 		return
 	}

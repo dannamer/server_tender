@@ -80,7 +80,9 @@ func GetTendersResponse(serviceTypes []string, limit, offset int) ([]models.Tend
 	var tenders []models.TenderResponse
 	for rows.Next() {
 		var tender models.TenderResponse
-		err := rows.Scan(&tender.ID, &tender.Name, &tender.Description, &tender.ServiceType, &tender.Status, &tender.Version, &tender.CreatedAt)
+		var created_at time.Time
+		err := rows.Scan(&tender.ID, &tender.Name, &tender.Description, &tender.ServiceType, &tender.Status, &tender.Version, &created_at)
+		tender.CreatedAt = created_at.Format(time.RFC3339)
 		if err != nil {
 			log.Printf("Ошибка при обработке результата запроса: %v", err)
 			return nil, err
@@ -97,16 +99,16 @@ func GetTendersResponse(serviceTypes []string, limit, offset int) ([]models.Tend
 	return tenders, nil
 }
 
-func GetTendersByUsername(username string, limit, offset int) ([]models.TenderResponse, error) {
+func GetTendersByUsername(usernameID string, limit, offset int) ([]models.TenderResponse, error) {
 	query := `
 		SELECT id, name, description, service_type, status, version, created_at
 		FROM tenders
-		WHERE creator_username = $1
+		WHERE creator_username_id = $1
 		ORDER BY name
 		LIMIT $2 OFFSET $3
 	`
 
-	rows, err := dbConn.Query(context.Background(), query, username, limit, offset)
+	rows, err := dbConn.Query(context.Background(), query, usernameID, limit, offset)
 	if err != nil {
 		log.Printf("Ошибка выполнения запроса к базе данных: %v", err)
 		return nil, err
@@ -116,7 +118,9 @@ func GetTendersByUsername(username string, limit, offset int) ([]models.TenderRe
 	var tenders []models.TenderResponse
 	for rows.Next() {
 		var tender models.TenderResponse
-		err := rows.Scan(&tender.ID, &tender.Name, &tender.Description, &tender.ServiceType, &tender.Status, &tender.Version, &tender.CreatedAt)
+		var created_at time.Time
+		err := rows.Scan(&tender.ID, &tender.Name, &tender.Description, &tender.ServiceType, &tender.Status, &tender.Version, &created_at)
+		tender.CreatedAt = created_at.Format(time.RFC3339)
 		if err != nil {
 			log.Printf("Ошибка при обработке результата запроса: %v", err)
 			return nil, err
