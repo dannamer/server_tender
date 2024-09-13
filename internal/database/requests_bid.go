@@ -38,17 +38,13 @@ func OrganizationExists(organizationID string) (bool, error) {
 
 // починить..
 func SaveBid(bid *models.Bid) error {
-	// Создаем контекст с тайм-аутом 5 секунд
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel() // Отмена контекста после завершения функции
-
 	query := `
-        INSERT INTO bids (id, name, description, status, tender_id, author_type, author_id, version, created_at)
-        VALUES (uuid_generate_v4(), $1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
+        INSERT INTO bids (id, name, description, status, tender_id, author_type, author_id, version, coordination, created_at)
+        VALUES (uuid_generate_v4(), $1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
         RETURNING id, created_at
     `
 	// Выполняем запрос и захватываем автоматически сгенерированные поля id и created_at
-	err := dbConn.QueryRow(ctx, query, bid.Name, bid.Description, bid.Status, bid.TenderID, bid.AuthorType, bid.AuthorID, bid.Version).
+	err := dbConn.QueryRow(context.Background(), query, bid.Name, bid.Description, bid.Status, bid.TenderID, bid.AuthorType, bid.AuthorID, bid.Version, bid.Сoordination).
 		Scan(&bid.ID, &bid.CreatedAt)
 
 	return err

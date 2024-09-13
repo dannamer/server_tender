@@ -34,8 +34,7 @@ CREATE TABLE bids (
     version INT NOT NULL DEFAULT 1,
     coordination VARCHAR(50) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (tender_id) REFERENCES tenders(id) ON DELETE CASCADE,
-    FOREIGN KEY (author_id) REFERENCES employee(id) ON DELETE CASCADE
+    FOREIGN KEY (tender_id) REFERENCES tenders(id) ON DELETE CASCADE
 );
 
 CREATE TABLE user_decisions (

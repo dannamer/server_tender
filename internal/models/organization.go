@@ -13,7 +13,7 @@ const (
 
 // Organization represents an organization entity in the system
 type Organization struct {
-	ID          int              `json:"id"`          // Уникальный идентификатор организации
+	ID          string           `json:"id"`          // Уникальный идентификатор организации
 	Name        string           `json:"name"`        // Название организации
 	Description string           `json:"description"` // Описание организации
 	Type        OrganizationType `json:"type"`        // Тип организации (IE, LLC, JSC)

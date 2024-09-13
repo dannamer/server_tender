@@ -49,13 +49,14 @@ func CreateBidHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	bid := models.Bid{
-		Name:        bidRequest.Name,
-		Description: bidRequest.Description,
-		Status:      models.Created,
-		TenderID:    bidRequest.TenderID,
-		AuthorType:  bidRequest.AuthorType,
-		AuthorID:    bidRequest.AuthorID,
-		Version:     1,
+		Name:         bidRequest.Name,
+		Description:  bidRequest.Description,
+		Status:       models.Created,
+		TenderID:     bidRequest.TenderID,
+		AuthorType:   bidRequest.AuthorType,
+		AuthorID:     bidRequest.AuthorID,
+		Version:      1,
+		Сoordination: models.Expectation,
 	}
 
 	err = database.SaveBid(&bid)
