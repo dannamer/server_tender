@@ -301,17 +301,17 @@ func SubmitBidDecisionHandler(w http.ResponseWriter, r *http.Request) {
 	bid.UserDecision = append(bid.UserDecision, *userDecision)
 	if decision == models.Rejected {
 		bid.Сoordination = models.Rejected
-		bid.Status = models.Canceled
+		bid.Status = models.Closed
 	} else if len(bid.UserDecision) >= 3 {
 		bid.Сoordination = models.Approved
-		bid.Status = models.Canceled
+		bid.Status = models.Closed
 		bids, err := database.GetBidsByTenderIDWithExpectation(tender.ID)
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Ошибка при получении предложений")
 			return
 		}
 		for _, bida := range bids {
-			bida.Status = models.Canceled
+			bida.Status = models.Closed
 			bida.Сoordination = models.RejectedByConflict
 			if err := database.UpdateBid(&bida); err != nil {
 				respondWithError(w, http.StatusInternalServerError, "Ошибка при обновлении статуса предложения")

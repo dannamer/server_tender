@@ -5,7 +5,7 @@ import (
 	"github.com/jackc/pgx/v4"
 	"log"
 	"fmt"
-	"tender-service/config"
+	// "tender-service/config"
 
 )
 
@@ -13,7 +13,7 @@ var dbConn *pgx.Conn
 
 func ConnectPostgres() (*pgx.Conn, error) {
 	// Получаем строку подключения из переменной окружения
-	connStr := config.LoadConfig().PostgresConn
+	connStr := "postgresql://your_user:your_password@localhost:5432/your_database"
 
 	// Проверка наличия строки подключения
 	if connStr == "" {

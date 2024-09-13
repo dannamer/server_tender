@@ -14,7 +14,7 @@ const (
 const (
 	Created   Status = "Created"
 	Published Status = "Published"
-	Canceled  Status = "Canceled"
+	Closed  Status = "Closed"
 )
 
 const (

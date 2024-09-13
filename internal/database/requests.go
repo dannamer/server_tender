@@ -9,38 +9,14 @@ import (
 	"github.com/lib/pq"
 )
 
-// Функция проверяет, является ли пользователь ответственным за организацию
-// func CheckUserOrganizationResponsibility(username string, organizationID string) bool {
-// 	var exists bool
-
-// 	query := `
-// 		SELECT EXISTS (
-// 			SELECT 1
-// 			FROM organization_responsible AS or
-// 			JOIN employee AS e ON or.user_id = e.id
-// 			WHERE e.username = $1 AND or.organization_id = $2
-// 		)
-// 	`
-
-// 	// Выполняем запрос к базе данных
-// 	err := dbConn.QueryRow(context.Background(), query, username, organizationID).Scan(&exists)
-// 	if err != nil {
-// 		log.Printf("Ошибка при проверке прав пользователя: %v\n", err)
-// 		return false
-// 	}
-
-// 	// Возвращаем результат проверки
-// 	return exists
-// }
-
 func CheckUserOrganizationResponsibility(userID string, organizationID string) bool {
 	var exists bool
 
 	query := `
 		SELECT EXISTS (
 			SELECT 1 
-			FROM organization_responsible AS or
-			WHERE or.user_id = $1 AND or.organization_id = $2
+			FROM organization_responsible AS org
+			WHERE org.user_id = $1 AND org.organization_id = $2
 		)
 	`
 
@@ -49,7 +25,6 @@ func CheckUserOrganizationResponsibility(userID string, organizationID string) b
 	if err != nil {
 		return false
 	}
-
 	// Возвращаем результат проверки
 	return exists
 }

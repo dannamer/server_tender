@@ -69,7 +69,8 @@ func CreateTenderHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(createTenderResponse(&tender))
 }
-//вроде как готово
+
+// вроде как готово
 func GetTendersHandler(w http.ResponseWriter, r *http.Request) {
 	// Проверка метода запроса
 	if r.Method != http.MethodGet {
@@ -120,7 +121,8 @@ func GetTendersHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(tenders)
 }
-//вроде как готово
+
+// вроде как готово
 func GetUserTendersHandler(w http.ResponseWriter, r *http.Request) {
 	// Проверка метода запроса
 	if r.Method != http.MethodGet {
@@ -185,30 +187,28 @@ func GetTenderStatusHandler(w http.ResponseWriter, r *http.Request) {
 	tenderID := chi.URLParam(r, "tenderId")
 	username := r.URL.Query().Get("username")
 
-	if validateID(w, tenderID, "ID тендера") || validateUsername(w, username) {
+	if validateID(w, tenderID, "ID тендера") {
 		return
 	}
-	user, res := getAndValidateUserByUsername(w, username)
-	if res {
-		return
+	if username != "" {
+		_, res := getAndValidateUserByUsername(w, username)
+		if res {
+			return
+		}
 	}
 	tender, res := getAndValidateTenderByID(w, tenderID)
 	if res {
 		return
 	}
-	if !database.CheckUserOrganizationResponsibility(user.ID, tender.OrganizationID) {
-		respondWithError(w, http.StatusForbidden, "пользователь не имеет ответственности к организации стенда")
-	}
+	// if !database.CheckUserOrganizationResponsibility(user.ID, tender.OrganizationID) {
+	// 	respondWithError(w, http.StatusForbidden, "пользователь не имеет ответственности к организации стенда")
+	// }
 
 	// Формируем ответ со статусом тендера
-	response := map[string]string{
-		"status": string(tender.Status),
-	}
-
 	// Отправляем успешный ответ с текущим статусом
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	json.NewEncoder(w).Encode(tender.Status)
 }
 
 // готово
@@ -229,13 +229,13 @@ func UpdateTenderStatusHandler(w http.ResponseWriter, r *http.Request) {
 	if res {
 		return
 	}
-	// Проверяем, имеет ли пользователь право изменять статус тендера
-	if !database.CheckUserOrganizationResponsibility(user.ID, tenderID) {
-		respondWithError(w, http.StatusForbidden, "Пользователь не имеет отвественности за организацию текущего тендера для изменения статуса")
-		return
-	}
 	tender, res := getAndValidateTenderByID(w, tenderID)
 	if res {
+		return
+	}
+	// Проверяем, имеет ли пользователь право изменять статус тендера
+	if !database.CheckUserOrganizationResponsibility(user.ID, tender.OrganizationID) {
+		respondWithError(w, http.StatusForbidden, "Пользователь не имеет отвественности за организацию текущего тендера для изменения статуса")
 		return
 	}
 	// Обновляем статус тендера в базе данных

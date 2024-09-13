@@ -66,10 +66,10 @@ func validateStatus(w http.ResponseWriter, status models.Status) bool {
 	validStatuses := map[models.Status]bool{
 		models.Created:   true,
 		models.Published: true,
-		models.Canceled:  true,
+		models.Closed:  true,
 	}
 	if !validStatuses[status] {
-		respondWithError(w, http.StatusBadRequest, "Некорректный статус. Допустимые значения: Created, Published, Canceled")
+		respondWithError(w, http.StatusBadRequest, "Некорректный статус. Допустимые значения: Created, Published, Closed")
 		return true
 	}
 	return false
