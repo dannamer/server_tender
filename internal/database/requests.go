@@ -62,10 +62,10 @@ func GetTendersResponse(serviceTypes []string, limit, offset int) ([]models.Tend
 	if len(serviceTypes) > 0 {
 		query += " WHERE service_type = ANY($1)"
 		args = append(args, pq.Array(serviceTypes))
+		query += " ORDER BY name LIMIT $2 OFFSET $3"
+	} else {
+		query += " ORDER BY name LIMIT $1 OFFSET $2"
 	}
-
-	// Добавляем сортировку и параметры пагинации
-	query += " ORDER BY name LIMIT $2 OFFSET $3"
 	args = append(args, limit, offset)
 
 	// Выполняем запрос к базе данных
