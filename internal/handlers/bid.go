@@ -407,3 +407,47 @@ func UpdateBidStatusHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(bidResponse)
 }
+
+func EditBidHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPatch {
+		respondWithError(w, http.StatusMethodNotAllowed, "Метод не поддерживается")
+		return
+	}
+	bidID := chi.URLParam(r, "bidId")
+	username := r.URL.Query().Get("username")
+	if validateID(w, bidID, "ID предложения") || validateUsername(w, username) {
+		return
+	}
+	bid, res := getAndValidateBidByID(w, bidID)
+	if res {
+		return
+	}
+	user, res := getAndValidateUserByUsername(w, username)
+	if res {
+		return
+	}
+	if bid.AuthorType == models.AuthorTypeUser && bid.AuthorID != user.ID {
+		respondWithError(w, http.StatusForbidden, "Недостаточно прав для редактирования тендера")
+	} else if bid.AuthorType == models.AuthorTypeOrganization && !database.CheckUserOrganizationResponsibility(user.ID, bid.AuthorID) {
+		respondWithError(w, http.StatusForbidden, "Недостаточно прав для редактирования тендера")
+	}
+
+	var editBidHandler models.BidEditRequest
+	err := json.NewDecoder(r.Body).Decode(&editBidHandler)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Неверный формат запроса")
+	}
+	if editBidHandler.Name == "" && editBidHandler.Description == "" {
+		respondWithError(w, http.StatusBadRequest, "Отправлен пустой запрос")
+	}
+	copybid := *bid
+	updateBidFields(w, &editBidHandler, bid)
+	saveBidHistory(w, &copybid)
+	bid.Version++
+	if err := database.UpdateBid(bid); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Ошибка при обновлении тендера")
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(createBidResponse(bid))
+}

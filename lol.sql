@@ -1,4 +1,4 @@
--- Active: 1726188763011@@192.168.0.11@5432@your_database
+-- Active: 1726220107504@@192.168.0.11@5432@your_database
 
 CREATE TABLE IF NOT EXISTS tenders (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -54,5 +54,15 @@ CREATE TABLE IF NOT EXISTS feedback (
     bid_feedback TEXT NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES employee(id) ON DELETE CASCADE,
+    FOREIGN KEY (bid_id) REFERENCES bids(id) ON DELETE CASCADE
+);
+
+CREATE TABLE bid_history (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    bid_id UUID NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    description TEXT NOT NULL,
+    version INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (bid_id) REFERENCES bids(id) ON DELETE CASCADE
 );

@@ -397,3 +397,20 @@ func GetOrganizationByID(organizationID string) (*models.Organization, error) {
 
 	return &organization, nil
 }
+
+func SaveBidHistory(bidHistory *models.BidHistory) error {
+	// Запрос на вставку данных в таблицу bid_history
+	query := `
+		INSERT INTO bid_history (id, bid_id, name, description, version)
+		VALUES (uuid_generate_v4(), $1, $2, $3, $4)
+	`
+
+	// Выполняем запрос с параметрами из структуры BidHistory
+	_, err := dbConn.Exec(context.Background(), query,
+		bidHistory.BidID,
+		bidHistory.Name,
+		bidHistory.Description,
+		bidHistory.Version,
+	)
+	return err
+}

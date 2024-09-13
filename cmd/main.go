@@ -11,6 +11,12 @@ import (
 
 func main() {
 	// Подключение к базе данных
+	// defer func() {
+	// 	if err := recover(); err != nil {
+	// 		log.Println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", err)
+	// 	}
+	// 	log.Println("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+	// }()
 	_, err := database.ConnectPostgres()
 	if err != nil {
 		log.Fatalf("Ошибка подключения к базе данных: %v", err)

@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v4"
+	"log"
 	"net/http"
 	"strconv"
-	"log"
 	"tender-service/internal/database"
 	"tender-service/internal/models"
 )
@@ -216,6 +216,9 @@ func GetTenderStatusHandler(w http.ResponseWriter, r *http.Request) {
 
 // готово
 func UpdateTenderStatusHandler(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		recover()
+	}()
 	if r.Method != http.MethodPut {
 		respondWithError(w, http.StatusMethodNotAllowed, "Метод не поддерживается")
 		return
@@ -290,7 +293,7 @@ func EditTenderHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	copyTender := *tender
-	
+
 	if updateTenderFields(w, &tenderEditRequest, tender) {
 		return
 	}
@@ -298,7 +301,7 @@ func EditTenderHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tender.Version++
-	
+
 	if err := database.UpdateTender(tender); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Ошибка при обновлении тендера")
 		return

@@ -56,8 +56,6 @@ func GetTendersResponse(serviceTypes []string, limit, offset int) ([]models.Tend
 		SELECT id, name, description, service_type, status, version, created_at 
 		FROM tenders
 	`
-
-	// Добавляем условие для фильтрации по типам услуг, если указано
 	var args []interface{}
 	if len(serviceTypes) > 0 {
 		query += " WHERE service_type = ANY($1)"
@@ -77,7 +75,7 @@ func GetTendersResponse(serviceTypes []string, limit, offset int) ([]models.Tend
 	defer rows.Close()
 
 	// Обрабатываем результат и заполняем список тендеров
-	var tenders []models.TenderResponse
+	tenders := []models.TenderResponse{}
 	for rows.Next() {
 		var tender models.TenderResponse
 		var created_at time.Time
@@ -210,6 +208,8 @@ func SaveTenderHistory(tenderHistory *models.TenderHistory) error {
 	)
 	return err
 }
+
+
 
 func GetTenderHistoryByVersion(tenderID string, version int) (*models.TenderHistory, error) {
 	var tenderHistory models.TenderHistory

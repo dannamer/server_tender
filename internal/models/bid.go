@@ -14,7 +14,7 @@ const (
 const (
 	Created   Status = "Created"
 	Published Status = "Published"
-	Closed  Status = "Closed"
+	Closed    Status = "Closed"
 )
 
 const (
@@ -26,18 +26,31 @@ const (
 
 // версия 1
 type Bid struct {
-	ID             string
-	Name           string
-	Description    string
-	Status         Status
-	TenderID       string
-	AuthorType     AuthorType
-	AuthorID       string
-	Version        int
-	Feedback       []Feedback
-	Сoordination   Сoordination
-	UserDecision   []UserDecision
-	CreatedAt      time.Time
+	ID           string
+	Name         string
+	Description  string
+	Status       Status
+	TenderID     string
+	AuthorType   AuthorType
+	AuthorID     string
+	Version      int
+	Feedback     []Feedback
+	Сoordination Сoordination
+	UserDecision []UserDecision
+	CreatedAt    time.Time
+}
+
+type BidEditRequest struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+type BidHistory struct {
+	ID          string
+	BidID       string
+	Name        string
+	Description string
+	Version     int
 }
 
 type UserDecision struct {

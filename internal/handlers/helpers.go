@@ -16,6 +16,7 @@ func respondWithError(w http.ResponseWriter, code int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	json.NewEncoder(w).Encode(models.ErrorResponse{Reason: message})
+	panic("")
 }
 
 func validateName(w http.ResponseWriter, name string, fieldName string) bool {
@@ -224,6 +225,20 @@ func saveTenderHistory(w http.ResponseWriter, tender *models.Tender) bool {
 	return false
 }
 
+func saveBidHistory(w http.ResponseWriter, bid *models.Bid) bool {
+	bidHistory := &models.BidHistory{
+		BidID: bid.ID,
+		Name: bid.Name,
+		Description: bid.Description,
+		Version: bid.Version,
+	}
+	if err := database.SaveBidHistory(bidHistory); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Ошибка при сохранении истории тендера")
+		return true
+	}
+	return false
+}
+
 func createTenderResponse(tender *models.Tender) *models.TenderResponse {
 	return &models.TenderResponse{
 		ID:          tender.ID,
@@ -233,6 +248,17 @@ func createTenderResponse(tender *models.Tender) *models.TenderResponse {
 		Status:      tender.Status,
 		Version:     tender.Version,
 		CreatedAt:   tender.CreatedAt.Format(time.RFC3339),
+	}
+}
+
+func createBidResponse(bid *models.Bid) *models.BidResponse {
+	return &models.BidResponse{
+		ID: bid.ID,
+		Name: bid.Name,
+		AuthorType: bid.AuthorType,
+		AuthorID: bid.AuthorID,
+		Version: bid.Version,
+		CreatedAt: bid.CreatedAt.Format(time.RFC3339),
 	}
 }
 
@@ -261,3 +287,17 @@ func updateTenderFields(w http.ResponseWriter, tenderEditRequest *models.TenderE
 	return false
 }
 
+func updateBidFields(w http.ResponseWriter, bidEditRequest *models.BidEditRequest, bid *models.Bid) bool {
+	if bidEditRequest.Name != "" {
+		if validateName(w, bidEditRequest.Name, "предложения") {
+			return true
+		}
+		bid.Name = bidEditRequest.Name
+	}
+	if bidEditRequest.Description != "" {
+		if validateDescription(w, bidEditRequest.Description, "предложения") {
+			return true
+		}
+	}
+	return false 
+}
