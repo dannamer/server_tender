@@ -113,12 +113,12 @@ func GetTendersByUsername(usernameID string, limit, offset int) ([]models.Tender
 	}
 	defer rows.Close()
 
-	var tenders []models.TenderResponse
+	tenders := []models.TenderResponse{}
 	for rows.Next() {
 		var tender models.TenderResponse
-		var created_at time.Time
-		err := rows.Scan(&tender.ID, &tender.Name, &tender.Description, &tender.ServiceType, &tender.Status, &tender.Version, &created_at)
-		tender.CreatedAt = created_at.Format(time.RFC3339)
+		var createdAt time.Time
+		err := rows.Scan(&tender.ID, &tender.Name, &tender.Description, &tender.ServiceType, &tender.Status, &tender.Version, &createdAt)
+		tender.CreatedAt = createdAt.Format(time.RFC3339)
 		if err != nil {
 			log.Printf("Ошибка при обработке результата запроса: %v", err)
 			return nil, err

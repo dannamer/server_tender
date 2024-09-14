@@ -3,366 +3,226 @@ package handlers
 import (
 	"encoding/json"
 	"github.com/go-chi/chi/v5"
-	"github.com/jackc/pgx/v4"
-	"log"
+	// "log"
 	"net/http"
-	"strconv"
 	"tender-service/internal/database"
 	"tender-service/internal/models"
 )
 
 func PingHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
-	_, err := w.Write([]byte("ok"))
-	if err != nil {
-		http.Error(w, "Невозможно написать ответ", http.StatusInternalServerError)
-	}
+	w.Write([]byte("ok"))
 }
 
-// готово
 func CreateTenderHandler(w http.ResponseWriter, r *http.Request) {
-	// Проверяем метод запроса
-	if r.Method != http.MethodPost {
-		respondWithError(w, http.StatusMethodNotAllowed, "Метод не поддерживается")
-		return
-	}
-	log.Println("проверка")
-	var tenderRequest models.TenderRequest
+	defer func() {
+		recover()
+	}()
 
-	// Декодируем тело запроса
-	err := json.NewDecoder(r.Body).Decode(&tenderRequest)
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Неверный формат запроса")
-		return
-	}
-	if validateName(w, tenderRequest.Name, "тендера") || validateDescription(w, tenderRequest.Description, "тендера") || validateServiceType(w, models.ServiceType(tenderRequest.ServiceType)) || validateID(w, tenderRequest.OrganizationID, "ID организации") || validateUsername(w, tenderRequest.CreatorUsername) {
-		return
+	tenderRequest := &models.TenderRequest{}
+	if err := json.NewDecoder(r.Body).Decode(tenderRequest); err != nil {
+		respondWithPanicError(w, http.StatusBadRequest, "Неверный формат запроса")
 	}
 
-	// Проверяем права пользователя
-	user, res := getAndValidateUserByUsername(w, tenderRequest.CreatorUsername)
-	if res {
-		return
-	}
+	validateName(w, tenderRequest.Name, "тендера")
+	validateDescription(w, tenderRequest.Description, "тендера")
+	validateServiceType(w, models.ServiceType(tenderRequest.ServiceType))
+	validateID(w, tenderRequest.OrganizationID, "ID организации")
+	validateUsername(w, tenderRequest.CreatorUsername)
+
+	user := getAndValidateUserByUsername(w, tenderRequest.CreatorUsername)
+
 	if !database.CheckUserOrganizationResponsibility(user.ID, tenderRequest.OrganizationID) {
-		respondWithError(w, http.StatusForbidden, "Пользователь не имеет прав для создания тендеров от имени этой организации")
-		return
+		respondWithPanicError(w, http.StatusForbidden, "Пользователь не имеет прав для создания тендеров от имени этой организации")
 	}
 
-	// Создаем объект тендера
-	tender := models.Tender{
-		Name:              tenderRequest.Name,
-		Description:       tenderRequest.Description,
-		ServiceType:       tenderRequest.ServiceType,
-		Status:            models.Created,
-		OrganizationID:    tenderRequest.OrganizationID,
-		CreatorUsernameID: user.ID,
-		Version:           1,
+	tender := createTender(tenderRequest)
+
+	if err := database.SaveTender(tender); err != nil {
+		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при сохранении тендера")
 	}
 
-	// Сохраняем тендер в базу данных
-	if err = database.SaveTender(&tender); err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Ошибка при сохранении тендера")
-		return
-	}
-	// Возвращаем успешный ответ
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(createTenderResponse(&tender))
+	json.NewEncoder(w).Encode(createTenderResponse(tender))
 }
 
-// готово
 func GetTendersHandler(w http.ResponseWriter, r *http.Request) {
-	// Проверка метода запроса
-	if r.Method != http.MethodGet {
-		respondWithError(w, http.StatusMethodNotAllowed, "Метод не поддерживается")
-		return
-	}
+	defer func() {
+		recover()
+	}()
 
-	// Получаем параметры пагинации и тип услуги из query-параметров
 	limitParam := r.URL.Query().Get("limit")
 	offsetParam := r.URL.Query().Get("offset")
-	serviceTypes := r.URL.Query()["service_type"] // Массив значений параметра service_type
+	serviceTypes := r.URL.Query()["service_type"]
+
 	for _, serviceType := range serviceTypes {
-		if validateServiceType(w, models.ServiceType(serviceType)) {
-			return
-		}
-	}
-	// Значения по умолчанию для пагинации
-	limit := 5
-	offset := 0
-
-	// Обрабатываем лимит и смещение (если заданы)
-	if limitParam != "" {
-		if parsedLimit, err := strconv.Atoi(limitParam); err == nil && parsedLimit > 0 {
-			limit = parsedLimit
-		} else {
-			respondWithError(w, http.StatusBadRequest, "Некорректный параметр лимита")
-			return
-		}
-	}
-	if offsetParam != "" {
-		if parsedOffset, err := strconv.Atoi(offsetParam); err == nil && parsedOffset >= 0 {
-			offset = parsedOffset
-		} else {
-			respondWithError(w, http.StatusBadRequest, "Некорректный параметр смещения")
-			return
-		}
+		validateServiceType(w, models.ServiceType(serviceType))
 	}
 
-	// Получаем список тендеров из базы данных через функцию
+	limit, offset := validateLimitAndOffset(w, limitParam, offsetParam)
+
 	tenders, err := database.GetTendersResponse(serviceTypes, limit, offset)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Ошибка при получении тендеров")
-		return
+		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при получении тендеров")
 	}
 
-	// Возвращаем ответ
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(tenders)
 }
 
-// готово
 func GetUserTendersHandler(w http.ResponseWriter, r *http.Request) {
-	// Проверка метода запроса
-	if r.Method != http.MethodGet {
-		respondWithError(w, http.StatusMethodNotAllowed, "Метод не поддерживается")
-		return
-	}
+	defer func() {
+		recover()
+	}()
 
-	// Получаем username из query-параметров
 	username := r.URL.Query().Get("username")
-	// по openapi у вас username не обязателен, я считаю, что у вас отпечатка
-	user, res := getAndValidateUserByUsername(w, username)
-	if res {
-		return
-	}
+	user := getAndValidateUserByUsername(w, username)
 
-	// Получаем параметры пагинации
 	limitParam := r.URL.Query().Get("limit")
 	offsetParam := r.URL.Query().Get("offset")
 
-	// Значения по умолчанию для пагинации
-	limit := 5
-	offset := 0
+	limit, offset := validateLimitAndOffset(w, limitParam, offsetParam)
 
-	// Обрабатываем лимит и смещение (если заданы)
-	if limitParam != "" {
-		if parsedLimit, err := strconv.Atoi(limitParam); err == nil && parsedLimit > 0 {
-			limit = parsedLimit
-		} else {
-			respondWithError(w, http.StatusBadRequest, "Некорректный параметр лимита")
-			return
-		}
-	}
-	if offsetParam != "" {
-		if parsedOffset, err := strconv.Atoi(offsetParam); err == nil && parsedOffset >= 0 {
-			offset = parsedOffset
-		} else {
-			respondWithError(w, http.StatusBadRequest, "Некорректный параметр смещения")
-			return
-		}
-	}
-
-	// Получаем список тендеров пользователя из базы данных
 	tenders, err := database.GetTendersByUsername(user.ID, limit, offset)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Ошибка при получении тендеров пользователя")
-		return
+		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при получении тендеров пользователя")
 	}
-	if len(tenders) == 0 {
-		respondWithError(w, 404, "Тендеры пользователя не найдены")
-		return
-	}
-	// Возвращаем список тендеров в формате JSON
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(tenders)
 }
 
-// готово
 func GetTenderStatusHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		respondWithError(w, http.StatusMethodNotAllowed, "Метод не поддерживается")
-		return
-	}
+	defer func() {
+		recover()
+	}()
 
-	// Получаем параметры из URL (tenderId и username)
 	tenderID := chi.URLParam(r, "tenderId")
 	username := r.URL.Query().Get("username")
 
-	if validateID(w, tenderID, "ID тендера") {
-		return
-	}
+	validateID(w, tenderID, "ID тендера")
 	if username != "" {
-		_, res := getAndValidateUserByUsername(w, username)
-		if res {
-			return
-		}
+		getAndValidateUserByUsername(w, username)
 	}
-	tender, res := getAndValidateTenderByID(w, tenderID)
-	if res {
-		return
-	}
-	// if !database.CheckUserOrganizationResponsibility(user.ID, tender.OrganizationID) {
-	// 	respondWithError(w, http.StatusForbidden, "пользователь не имеет ответственности к организации стенда")
-	// }
+
+	tender := getAndValidateTenderByID(w, tenderID)
 
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(tender.Status)
 }
 
-// готово
 func UpdateTenderStatusHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		recover()
 	}()
-	if r.Method != http.MethodPut {
-		respondWithError(w, http.StatusMethodNotAllowed, "Метод не поддерживается")
-		return
-	}
 
-	// Получаем параметры из URL (tenderId, status, username)
 	tenderID := chi.URLParam(r, "tenderId")
 	newStatus := r.URL.Query().Get("status")
 	username := r.URL.Query().Get("username")
-	if validateID(w, tenderID, "ID тендера") || validateStatus(w, models.Status(newStatus)) || validateUsername(w, username) {
-		return
-	}
-	user, res := getAndValidateUserByUsername(w, username)
-	if res {
-		return
-	}
-	tender, res := getAndValidateTenderByID(w, tenderID)
-	if res {
-		return
-	}
-	// Проверяем, имеет ли пользователь право изменять статус тендера
+
+	validateID(w, tenderID, "ID тендера")
+	validateStatus(w, models.Status(newStatus))
+	validateUsername(w, username)
+
+	user := getAndValidateUserByUsername(w, username)
+
+	tender := getAndValidateTenderByID(w, tenderID)
+
 	if !database.CheckUserOrganizationResponsibility(user.ID, tender.OrganizationID) {
-		respondWithError(w, http.StatusForbidden, "Пользователь не имеет отвественности за организацию текущего тендера для изменения статуса")
-		return
+		respondWithPanicError(w, http.StatusForbidden, "Пользователь не имеет отвественности за организацию текущего тендера для изменения статуса")
 	}
-	// Обновляем статус тендера в базе данных
+
 	tender.Status = models.Status(newStatus)
-	if err := database.UpdateTender(tender); err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Ошибка при обновлении статуса тендера")
-		return
-	}
-	// Отправляем успешный ответ
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(createTenderResponse(tender))
-}
-
-// исправить готово
-func EditTenderHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPatch {
-		respondWithError(w, http.StatusMethodNotAllowed, "Метод не поддерживается")
-		return
-	}
-
-	tenderID := chi.URLParam(r, "tenderId")
-	username := r.URL.Query().Get("username")
-
-	if validateID(w, tenderID, "ID тендера") || validateUsername(w, username) {
-		return
-	}
-	tender, res := getAndValidateTenderByID(w, tenderID)
-	if res {
-		return
-	}
-	user, res := getAndValidateUserByUsername(w, username)
-	if res {
-		return
-	}
-	if !database.CheckUserOrganizationResponsibility(user.ID, tender.OrganizationID) {
-		respondWithError(w, http.StatusForbidden, "Недостаточно прав для редактирования тендера")
-		return
-	}
-
-	var tenderEditRequest models.TenderEditRequest
-	err := json.NewDecoder(r.Body).Decode(&tenderEditRequest)
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Неверный формат запроса")
-		return
-	}
-
-	if tenderEditRequest.Name == "" && tenderEditRequest.Description == "" && tenderEditRequest.ServiceType == "" {
-		respondWithError(w, http.StatusBadRequest, "Отправлен пустой запрос")
-		return
-	}
-	copyTender := *tender
-
-	if updateTenderFields(w, &tenderEditRequest, tender) {
-		return
-	}
-	if saveTenderHistory(w, &copyTender) {
-		return
-	}
-	tender.Version++
 
 	if err := database.UpdateTender(tender); err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Ошибка при обновлении тендера")
-		return
+		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при обновлении статуса тендера")
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(createTenderResponse(tender))
 }
 
-// готво
-func RollbackTenderHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPut {
-		respondWithError(w, http.StatusMethodNotAllowed, "Метод не поддерживается")
-		return
+func EditTenderHandler(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		recover()
+	}()
+
+	tenderID := chi.URLParam(r, "tenderId")
+	username := r.URL.Query().Get("username")
+
+	validateID(w, tenderID, "ID тендера")
+	validateUsername(w, username)
+
+	tender := getAndValidateTenderByID(w, tenderID)
+	user := getAndValidateUserByUsername(w, username)
+
+	if !database.CheckUserOrganizationResponsibility(user.ID, tender.OrganizationID) {
+		respondWithPanicError(w, http.StatusForbidden, "Недостаточно прав для редактирования тендера")
 	}
+
+	tenderEditRequest := &models.TenderEditRequest{}
+	err := json.NewDecoder(r.Body).Decode(tenderEditRequest)
+	if err != nil {
+		respondWithPanicError(w, http.StatusBadRequest, "Неверный формат запроса")
+	}
+
+	if tenderEditRequest.Name == "" && tenderEditRequest.Description == "" && tenderEditRequest.ServiceType == "" {
+		respondWithPanicError(w, http.StatusBadRequest, "Отправлен пустой запрос")
+	}
+
+	copyTender := *tender
+
+	updateTenderFields(w, tenderEditRequest, tender)
+	saveTenderHistory(w, &copyTender)
+
+	tender.Version++
+
+	if err := database.UpdateTender(tender); err != nil {
+		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при обновлении тендера")
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(createTenderResponse(tender))
+}
+
+func RollbackTenderHandler(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		recover()
+	}()
 
 	tenderID := chi.URLParam(r, "tenderId")
 	versionParam := chi.URLParam(r, "version")
 	username := r.URL.Query().Get("username")
-	if validateID(w, tenderID, "ID тендера") || validateUsername(w, username) {
-		return
-	}
-	tender, res := getAndValidateTenderByID(w, tenderID)
-	if res {
-		return
-	}
-	user, res := getAndValidateUserByUsername(w, username)
-	if res {
-		return
-	}
 
-	version, err := strconv.Atoi(versionParam)
-	if err != nil || version < 1 || tender.Version <= version {
-		respondWithError(w, http.StatusBadRequest, "Некорректная версия")
-		return
-	}
+	validateID(w, tenderID, "ID тендера")
+	validateUsername(w, username)
+
+	tender := getAndValidateTenderByID(w, tenderID)
+	user := getAndValidateUserByUsername(w, username)
+
+	version := validateVersion(w, versionParam, tender.Version)
 
 	if !database.CheckUserOrganizationResponsibility(user.ID, tender.OrganizationID) {
-		respondWithError(w, http.StatusForbidden, "Недостаточно прав для выполнения действия")
-		return
+		respondWithPanicError(w, http.StatusForbidden, "Недостаточно прав для выполнения действия")
 	}
 
-	tenderHistoryVersion, err := database.GetTenderHistoryByVersion(tenderID, version)
-	if err != nil {
-		if err == pgx.ErrNoRows {
-			respondWithError(w, http.StatusNotFound, "Версия тендера не найдено")
-			return
-		}
-		respondWithError(w, http.StatusInternalServerError, "Ошибка при получении версии тендера")
-		return
-	}
-	if saveTenderHistory(w, tender) {
-		return
-	}
+	tenderHistoryVersion := getAndValidateTenderHistoryVersion(w, tender.ID, version)
+
+	saveTenderHistory(w, tender)
+
 	tender.Name = tenderHistoryVersion.Name
 	tender.Description = tenderHistoryVersion.Description
 	tender.ServiceType = tenderHistoryVersion.ServiceType
 	tender.Version++
+
 	if err := database.UpdateTender(tender); err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Ошибка при обновлении тендера")
-		return
+		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при обновлении тендера")
 	}
 
 	w.Header().Set("Content-Type", "application/json")

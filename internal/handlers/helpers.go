@@ -7,95 +7,80 @@ import (
 	"github.com/jackc/pgx/v4"
 	"net/http"
 	"regexp"
-	"time"
+	"strconv"
 	"tender-service/internal/database"
 	"tender-service/internal/models"
+	"time"
 )
 
-func respondWithError(w http.ResponseWriter, code int, message string) {
+func respondWithPanicError(w http.ResponseWriter, code int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	json.NewEncoder(w).Encode(models.ErrorResponse{Reason: message})
-	panic("")
+	panic(message)
 }
 
-func validateName(w http.ResponseWriter, name string, fieldName string) bool {
+func validateName(w http.ResponseWriter, name string, fieldName string) {
 	if name == "" {
-		respondWithError(w, http.StatusBadRequest, fmt.Sprintf("Название %s не может быть пустым", fieldName))
-		return true
+		respondWithPanicError(w, http.StatusBadRequest, fmt.Sprintf("Название %s не может быть пустым", fieldName))
 	}
 	if len(name) > 100 {
-		respondWithError(w, http.StatusBadRequest, fmt.Sprintf("Название %s слишком длинное, максимум 100 символов", fieldName))
-		return true
+		respondWithPanicError(w, http.StatusBadRequest, fmt.Sprintf("Название %s слишком длинное, максимум 100 символов", fieldName))
 	}
-	return false
 }
 
-func validateDescription(w http.ResponseWriter, description string, fieldName string) bool {
+func validateDescription(w http.ResponseWriter, description string, fieldName string) {
 	if description == "" {
-		respondWithError(w, http.StatusBadRequest, fmt.Sprintf("Описание %s не может быть пустым", fieldName))
-		return true
+		respondWithPanicError(w, http.StatusBadRequest, fmt.Sprintf("Описание %s не может быть пустым", fieldName))
 	}
 	if len(description) > 500 {
-		respondWithError(w, http.StatusBadRequest, fmt.Sprintf("Описание %s слишком длинное, максимум 500 символов", fieldName))
-		return true
+		respondWithPanicError(w, http.StatusBadRequest, fmt.Sprintf("Описание %s слишком длинное, максимум 500 символов", fieldName))
 	}
-	return false
 }
 
-func validateID(w http.ResponseWriter, id string, idType string) bool {
+func validateID(w http.ResponseWriter, id string, idType string) {
 	if id == "" {
-		respondWithError(w, http.StatusBadRequest, fmt.Sprintf("%s не может быть пустым", idType))
-		return true
+		respondWithPanicError(w, http.StatusBadRequest, fmt.Sprintf("%s не может быть пустым", idType))
+
 	}
 	if len(id) > 100 {
-		respondWithError(w, http.StatusBadRequest, fmt.Sprintf("%s слишком длинное, максимум 100 символов", idType))
-		return true
+		respondWithPanicError(w, http.StatusBadRequest, fmt.Sprintf("%s слишком длинное, максимум 100 символов", idType))
 	}
 	if _, err := uuid.Parse(id); err != nil {
-		respondWithError(w, http.StatusBadRequest, fmt.Sprintf("Некорректный формат %s", idType))
-		return true
+		respondWithPanicError(w, http.StatusBadRequest, fmt.Sprintf("Некорректный формат %s", idType))
 	}
-	return false
 }
 
-func validateStatus(w http.ResponseWriter, status models.Status) bool {
+func validateStatus(w http.ResponseWriter, status models.Status) {
 	if status == "" {
-		respondWithError(w, http.StatusBadRequest, "Статус не может быть пустым")
-		return true
+		respondWithPanicError(w, http.StatusBadRequest, "Статус не может быть пустым")
 	}
 	validStatuses := map[models.Status]bool{
 		models.Created:   true,
 		models.Published: true,
-		models.Closed:  true,
+		models.Closed:    true,
 	}
 	if !validStatuses[status] {
-		respondWithError(w, http.StatusBadRequest, "Некорректный статус. Допустимые значения: Created, Published, Closed")
-		return true
+		respondWithPanicError(w, http.StatusBadRequest, "Некорректный статус. Допустимые значения: Created, Published, Closed")
 	}
-	return false
 }
 
-func validateAuthorType(w http.ResponseWriter, authorType models.AuthorType) bool {
+func validateAuthorType(w http.ResponseWriter, authorType models.AuthorType) {
 	if authorType == "" {
-		respondWithError(w, http.StatusBadRequest, "Тип автора не может быть пустым")
-		return true
+		respondWithPanicError(w, http.StatusBadRequest, "Тип автора не может быть пустым")
 	}
 	validAuthorTypes := map[models.AuthorType]bool{
 		models.AuthorTypeOrganization: true,
 		models.AuthorTypeUser:         true,
 	}
 	if !validAuthorTypes[authorType] {
-		respondWithError(w, http.StatusBadRequest, "Некорректный тип автора. Допустимые значения: Organization, User")
-		return true
+		respondWithPanicError(w, http.StatusBadRequest, "Некорректный тип автора. Допустимые значения: Organization, User")
 	}
-	return false
 }
 
-func validateServiceType(w http.ResponseWriter, serviceType models.ServiceType) bool {
+func validateServiceType(w http.ResponseWriter, serviceType models.ServiceType) {
 	if serviceType == "" {
-		respondWithError(w, http.StatusBadRequest, "Тип услуги не может быть пустым")
-		return true
+		respondWithPanicError(w, http.StatusBadRequest, "Тип услуги не может быть пустым")
 	}
 	validServiceTypes := map[models.ServiceType]bool{
 		models.Construction: true,
@@ -103,114 +88,104 @@ func validateServiceType(w http.ResponseWriter, serviceType models.ServiceType) 
 		models.Manufacture:  true,
 	}
 	if !validServiceTypes[serviceType] {
-		respondWithError(w, http.StatusBadRequest, "Некорректный тип услуги. Допустимые значения: Construction, Delivery, Manufacture")
-		return true
+		respondWithPanicError(w, http.StatusBadRequest, "Некорректный тип услуги. Допустимые значения: Construction, Delivery, Manufacture")
 	}
-	return false
 }
 
-func validateDecision(w http.ResponseWriter, decision models.Сoordination) bool {
+func validateDecision(w http.ResponseWriter, decision models.Сoordination) {
 	if decision == "" {
-		respondWithError(w, http.StatusBadRequest, "Решение не может быть пустым")
-		return true
+		respondWithPanicError(w, http.StatusBadRequest, "Решение не может быть пустым")
 	}
 	validDecisions := map[models.Сoordination]bool{
 		models.Approved: true,
 		models.Rejected: true,
 	}
 	if !validDecisions[decision] {
-		respondWithError(w, http.StatusBadRequest, "Некорректное решение. Допустимые значения: Approved, Rejected")
-		return true
+		respondWithPanicError(w, http.StatusBadRequest, "Некорректное решение. Допустимые значения: Approved, Rejected")
 	}
-	return false
 }
 
-func validateUsername(w http.ResponseWriter, username string) bool {
+func validateUsername(w http.ResponseWriter, username string) {
 	if username == "" {
-		respondWithError(w, http.StatusBadRequest, "Имя пользователя не может быть пустым")
-		return true
+		respondWithPanicError(w, http.StatusBadRequest, "Имя пользователя не может быть пустым")
 	}
 	if len(username) > 50 {
-		respondWithError(w, http.StatusBadRequest, "Имя пользователя слишком длинное, максимум 50 символов")
-		return true
+		respondWithPanicError(w, http.StatusBadRequest, "Имя пользователя слишком длинное, максимум 50 символов")
 	}
 	validUsernameRegex := `^[a-zA-Z0-9_-]+$`
 	matched, err := regexp.MatchString(validUsernameRegex, username)
 	if err != nil || !matched {
-		respondWithError(w, http.StatusBadRequest, "Имя пользователя содержит недопустимые символы. Разрешены только буквы, цифры, дефисы и символы подчеркивания")
-		return true
+		respondWithPanicError(w, http.StatusBadRequest, "Имя пользователя содержит недопустимые символы. Разрешены только буквы, цифры, дефисы и символы подчеркивания")
 	}
-	return false
 }
 
-func getAndValidateBidByID(w http.ResponseWriter, bidID string) (*models.Bid, bool) {
+func getAndValidateBidByID(w http.ResponseWriter, bidID string) *models.Bid {
 	bid, err := database.GetBidByID(bidID)
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			// Если предложение не найдено
-			respondWithError(w, http.StatusNotFound, fmt.Sprintf("Предложение с указанным ID %s не найдено", bidID))
-			return nil, true
+			respondWithPanicError(w, http.StatusNotFound, fmt.Sprintf("Предложение с указанным ID %s не найдено", bidID))
 		}
-		// Если произошла другая ошибка базы данных
-		respondWithError(w, http.StatusInternalServerError, "Ошибка при получении предложения")
-		return nil, true
+		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при получении предложения")
 	}
-	return bid, false
+	return bid
 }
 
-func getAndValidateUserByUsername(w http.ResponseWriter, username string) (*models.User, bool) {
+func getAndValidateUserByUsername(w http.ResponseWriter, username string) *models.User {
 	user, err := database.GetUserByUsername(username)
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			respondWithError(w, http.StatusUnauthorized, fmt.Sprintf("Пользователь с именем '%s' не найден", username))
-			return nil, true
+			respondWithPanicError(w, http.StatusUnauthorized, fmt.Sprintf("Пользователь с именем '%s' не найден", username))
 		}
-		respondWithError(w, http.StatusInternalServerError, "Ошибка при получении данных пользователя")
-		return nil, true
+		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при получении данных пользователя")
 	}
-	return user, false
+	return user
 }
 
-func getAndValidateUserByID(w http.ResponseWriter, userID string) (*models.User, bool) {
+func getAndValidateUserByID(w http.ResponseWriter, userID string) *models.User {
 	user, err := database.GetUserByID(userID)
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			respondWithError(w, http.StatusUnauthorized, fmt.Sprintf("Пользователь с ID '%s' не найден", userID))
-			return nil, true
+			respondWithPanicError(w, http.StatusUnauthorized, fmt.Sprintf("Пользователь с ID '%s' не найден", userID))
 		}
-		respondWithError(w, http.StatusInternalServerError, "Ошибка при получении данных пользователя")
-		return nil, true
+		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при получении данных пользователя")
 	}
-	return user, false
+	return user
 }
 
-func getAndValidateOrganizationByID(w http.ResponseWriter, organizationID string) (*models.Organization, bool) {
+func getAndValidateOrganizationByID(w http.ResponseWriter, organizationID string) *models.Organization {
 	organization, err := database.GetOrganizationByID(organizationID)
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			respondWithError(w, http.StatusNotFound, fmt.Sprintf("Организация с ID '%s' не найдена", organizationID))
-			return nil, true
+			respondWithPanicError(w, http.StatusNotFound, fmt.Sprintf("Организация с ID '%s' не найдена", organizationID))
 		}
-		respondWithError(w, http.StatusInternalServerError, "Ошибка при получении данных организации")
-		return nil, true
+		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при получении данных организации")
 	}
-	return organization, false
+	return organization
 }
 
-func getAndValidateTenderByID(w http.ResponseWriter, tenderID string) (*models.Tender, bool) {
+func getAndValidateTenderByID(w http.ResponseWriter, tenderID string) *models.Tender {
 	tender, err := database.GetTenderByID(tenderID)
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			respondWithError(w, http.StatusNotFound, fmt.Sprintf("Тендер с ID %s не найден", tenderID))
-			return nil, true
+			respondWithPanicError(w, http.StatusNotFound, fmt.Sprintf("Тендер с ID %s не найден", tenderID))
 		}
-		respondWithError(w, http.StatusInternalServerError, "Ошибка при получении тендера")
-		return nil, true
+		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при получении тендера")
 	}
-	return tender, false
+	return tender
 }
 
-func saveTenderHistory(w http.ResponseWriter, tender *models.Tender) bool {
+func getAndValidateTenderHistoryVersion(w http.ResponseWriter, tenderID string, version int) *models.TenderHistory {
+	tenderHistoryVersion, err := database.GetTenderHistoryByVersion(tenderID, version)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			respondWithPanicError(w, http.StatusNotFound, "Версия тендера не найдена")
+		}
+		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при получении версии тендера")
+	}
+	return tenderHistoryVersion
+}
+
+func saveTenderHistory(w http.ResponseWriter, tender *models.Tender) {
 	tenderHistory := &models.TenderHistory{
 		TenderID:    tender.ID,
 		Name:        tender.Name,
@@ -219,24 +194,46 @@ func saveTenderHistory(w http.ResponseWriter, tender *models.Tender) bool {
 		Version:     tender.Version,
 	}
 	if err := database.SaveTenderHistory(tenderHistory); err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Ошибка при сохранении истории тендера")
-		return true
+		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при сохранении истории тендера")
 	}
-	return false
 }
 
-func saveBidHistory(w http.ResponseWriter, bid *models.Bid) bool {
+func saveBidHistory(w http.ResponseWriter, bid *models.Bid) {
 	bidHistory := &models.BidHistory{
-		BidID: bid.ID,
-		Name: bid.Name,
+		BidID:       bid.ID,
+		Name:        bid.Name,
 		Description: bid.Description,
-		Version: bid.Version,
+		Version:     bid.Version,
 	}
 	if err := database.SaveBidHistory(bidHistory); err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Ошибка при сохранении истории тендера")
-		return true
+		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при сохранении истории тендера")
 	}
-	return false
+}
+
+func createTender(tender *models.TenderRequest) *models.Tender {
+	user, _ := database.GetUserByUsername(tender.CreatorUsername)
+	return &models.Tender{
+		Name:              tender.Name,
+		Description:       tender.Description,
+		ServiceType:       tender.ServiceType,
+		Status:            models.Created,
+		OrganizationID:    tender.OrganizationID,
+		CreatorUsernameID: user.ID,
+		Version:           1,
+	}
+}
+
+func createBid(bid *models.BidRequest) *models.Bid {
+	return &models.Bid{
+		Name:         bid.Name,
+		Description:  bid.Description,
+		Status:       models.Created,
+		TenderID:     bid.TenderID,
+		AuthorType:   bid.AuthorType,
+		AuthorID:     bid.AuthorID,
+		Version:      1,
+		Сoordination: models.Expectation,
+	}
 }
 
 func createTenderResponse(tender *models.Tender) *models.TenderResponse {
@@ -253,51 +250,63 @@ func createTenderResponse(tender *models.Tender) *models.TenderResponse {
 
 func createBidResponse(bid *models.Bid) *models.BidResponse {
 	return &models.BidResponse{
-		ID: bid.ID,
-		Name: bid.Name,
+		ID:         bid.ID,
+		Name:       bid.Name,
 		AuthorType: bid.AuthorType,
-		AuthorID: bid.AuthorID,
-		Version: bid.Version,
-		CreatedAt: bid.CreatedAt.Format(time.RFC3339),
+		AuthorID:   bid.AuthorID,
+		Version:    bid.Version,
+		CreatedAt:  bid.CreatedAt.Format(time.RFC3339),
 	}
 }
 
-func updateTenderFields(w http.ResponseWriter, tenderEditRequest *models.TenderEditRequest, tender *models.Tender) bool {
+func updateTenderFields(w http.ResponseWriter, tenderEditRequest *models.TenderEditRequest, tender *models.Tender) {
 	if tenderEditRequest.Name != "" {
-		if validateName(w, tenderEditRequest.Name, "тендера") {
-			return true
-		}
+		validateName(w, tenderEditRequest.Name, "тендера")
 		tender.Name = tenderEditRequest.Name
 	}
-
 	if tenderEditRequest.Description != "" {
-		if validateDescription(w, tenderEditRequest.Description, "тендера") {
-			return true
-		}
+		validateDescription(w, tenderEditRequest.Description, "тендера")
 		tender.Description = tenderEditRequest.Description
 	}
-
 	if tenderEditRequest.ServiceType != "" {
-		if validateServiceType(w, tenderEditRequest.ServiceType) {
-			return true
-		}
+		validateServiceType(w, tenderEditRequest.ServiceType)
 		tender.ServiceType = tenderEditRequest.ServiceType
 	}
-
-	return false
 }
 
-func updateBidFields(w http.ResponseWriter, bidEditRequest *models.BidEditRequest, bid *models.Bid) bool {
+func updateBidFields(w http.ResponseWriter, bidEditRequest *models.BidEditRequest, bid *models.Bid) {
 	if bidEditRequest.Name != "" {
-		if validateName(w, bidEditRequest.Name, "предложения") {
-			return true
-		}
+		validateName(w, bidEditRequest.Name, "предложения")
 		bid.Name = bidEditRequest.Name
 	}
 	if bidEditRequest.Description != "" {
-		if validateDescription(w, bidEditRequest.Description, "предложения") {
-			return true
+		validateDescription(w, bidEditRequest.Description, "предложения")
+	}
+}
+
+func validateLimitAndOffset(w http.ResponseWriter, limitParam, offsetParam string) (int, int) {
+	limit, offset := 5, 0
+	if limitParam != "" {
+		if parsedLimit, err := strconv.Atoi(limitParam); err == nil && parsedLimit > 0 {
+			limit = parsedLimit
+		} else {
+			respondWithPanicError(w, http.StatusBadRequest, "Некорректный параметр лимита")
 		}
 	}
-	return false 
+	if offsetParam != "" {
+		if parsedOffset, err := strconv.Atoi(offsetParam); err == nil && parsedOffset >= 0 {
+			offset = parsedOffset
+		} else {
+			respondWithPanicError(w, http.StatusBadRequest, "Некорректный параметр смещения")
+		}
+	}
+	return limit, offset
+}
+
+func validateVersion(w http.ResponseWriter, versionParam string, currentVersion int) int {
+	version, err := strconv.Atoi(versionParam)
+	if err != nil || version < 1 || currentVersion <= version {
+		respondWithPanicError(w, http.StatusBadRequest, "Некорректная версия")
+	}
+	return version
 }
