@@ -130,24 +130,18 @@ func GetBidByID(bidID string) (*models.Bid, error) {
 	return &bid, nil
 }
 
-// GetBidsByUsername возвращает список предложений пользователя с поддержкой пагинации
-func GetBidsByUsername(username string, limit, offset int) ([]models.BidResponse, error) {
+func GetBidsByUserID(authorID string, limit, offset int) ([]models.BidResponse, error) {
 	bids := []models.BidResponse{}
-
-	// Создаем контекст с тайм-аутом 5 секунд
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
 	query := `
         SELECT id, name, status, author_type, author_id, version, created_at
         FROM bids
-        WHERE author_id = (SELECT id FROM employee WHERE username = $1)
+        WHERE author_id = $1
         ORDER BY name
         LIMIT $2 OFFSET $3
     `
 
 	// Выполняем запрос с использованием контекста
-	rows, err := dbConn.Query(ctx, query, username, limit, offset)
+	rows, err := dbConn.Query(context.Background(), query, authorID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -170,6 +164,7 @@ func GetBidsByUsername(username string, limit, offset int) ([]models.BidResponse
 
 	return bids, nil
 }
+
 
 func GetBidsByTenderID(tenderID string, limit, offset int) ([]models.BidResponse, error) {
 	var bids []models.BidResponse
@@ -208,30 +203,21 @@ func GetBidsByTenderID(tenderID string, limit, offset int) ([]models.BidResponse
 	return bids, nil
 }
 
-func GetUserOrganization(userID string) (string, bool, error) {
-	var organizationID string
-
+func GetUserOrganizationID(userID string) (string, error) {
 	query := `
-        SELECT organization_id 
-        FROM organization_responsible 
-        WHERE user_id = $1
-        LIMIT 1
-    `
-
-	// Выполняем запрос к базе данных
+		SELECT organization_id
+		FROM employee_organization
+		WHERE user_id = $1
+	`
+	var organizationID string
 	err := dbConn.QueryRow(context.Background(), query, userID).Scan(&organizationID)
-
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			// Если записи не найдено, возвращаем false
-			return "", false, nil
+			return "", nil // Пользователь не связан с организацией
 		}
-		// Возвращаем ошибку, если что-то пошло не так
-		return "", false, err
+		return "", err
 	}
-
-	// Если организация найдена, возвращаем её ID и true
-	return organizationID, true, nil
+	return organizationID, nil
 }
 
 // версия 1
@@ -477,6 +463,8 @@ func CheckBidExists(authorID, tenderID string) (bool, error) {
 	return exists, nil
 }
 
+
+
 func GetBidByTenderAndAuthorID(tenderID, authorID string) (*models.Bid, error) {
 	var bid models.Bid
 
@@ -543,4 +531,18 @@ func GetBidReviews(bidID string, limit, offset int) ([]models.FeedbackResponse, 
 	}
 
 	return feedbackResponses, nil
+}
+
+
+func HasUserOrganization(userID string) bool {
+	query := `
+		SELECT EXISTS (
+			SELECT 1 
+			FROM employee_organization 
+			WHERE user_id = $1
+		)
+	`
+	var exists bool
+	dbConn.QueryRow(context.Background(), query, userID).Scan(&exists)
+	return exists
 }

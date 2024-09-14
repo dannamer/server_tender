@@ -28,16 +28,16 @@ func CreateBidHandler(w http.ResponseWriter, r *http.Request) {
 	validateID(w, bidRequest.TenderID, "ID тендера")
 	validateName(w, bidRequest.Name, "предложения")
 	validateDescription(w, bidRequest.Description, "предложения")
-	validateBidUniqueness(w, bidRequest.AuthorID, bidRequest.TenderID)
+	
+	tender := getAndValidateTenderByID(w, bidRequest.TenderID)
+	user := getAndValidateUserByUsername(w, bidRequest.AuthorID)
 
 	if bidRequest.AuthorType == models.AuthorTypeOrganization {
-		getAndValidateOrganizationByID(w, bidRequest.AuthorID)
-	} else {
-		getAndValidateUserByID(w, bidRequest.AuthorID)
+		if !database.HasUserOrganization(user.ID) {
+			respondWithPanicError(w, http.StatusForbidden, "Пользователь не связан с организацией")
+		}
 	}
-
-	tender := getAndValidateTenderByID(w, bidRequest.TenderID)
-
+	
 	if tender.Status != models.Published {
 		respondWithPanicError(w, http.StatusForbidden, "Тендер ещё не опубликован или закрыт")
 	}
@@ -61,15 +61,14 @@ func GetUserBidsHandler(w http.ResponseWriter, r *http.Request) {
 	username := r.URL.Query().Get("username")
 	limitParam := r.URL.Query().Get("limit")
 	offsetParam := r.URL.Query().Get("offset")
-
-	getAndValidateUserByUsername(w, username)
+	
+	user := getAndValidateUserByUsername(w, username)
 
 	limit, offset := validateLimitAndOffset(w, limitParam, offsetParam)
 
-	bids, err := database.GetBidsByUsername(username, limit, offset)
+	bids, err := database.GetBidsByUserID(user.ID, limit, offset)
 	if err != nil {
 		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при получении предложений")
-		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -292,7 +291,7 @@ func UpdateBidStatusHandler(w http.ResponseWriter, r *http.Request) {
 		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при обновлении статуса тендера")
 	}
 
-	w.Header().Set("Content-Type", "text/plain")
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(createBidResponse(bid))
 }
