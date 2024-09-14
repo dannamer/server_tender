@@ -138,10 +138,6 @@ func GetTendersByUsername(usernameID string, limit, offset int) ([]models.Tender
 func GetTenderByID(tenderID string) (*models.Tender, error) {
 	var tender models.Tender
 
-	// Устанавливаем контекст с тайм-аутом 5 секунд
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
 	// SQL-запрос для получения тендера по ID
 	query := `
 		SELECT id, name, description, service_type, status, organization_id, creator_username_id, version, created_at
@@ -150,7 +146,7 @@ func GetTenderByID(tenderID string) (*models.Tender, error) {
 	`
 
 	// Выполняем запрос и сканируем результат в структуру Tender
-	err := dbConn.QueryRow(ctx, query, tenderID).Scan(
+	err := dbConn.QueryRow(context.Background(), query, tenderID).Scan(
 		&tender.ID,
 		&tender.Name,
 		&tender.Description,
@@ -209,7 +205,22 @@ func SaveTenderHistory(tenderHistory *models.TenderHistory) error {
 	return err
 }
 
-
+func GetBidHistoryByVersion(bidID string, version int) (*models.BidHistory, error) {
+	var bidHistory models.BidHistory
+	query := `
+		SELECT id, bid_id, name, description, version
+		FROM bid_history
+		WHERE bid_id = $1 AND version = $2
+	`
+	err := dbConn.QueryRow(context.Background(), query, bidID, version).Scan(
+		&bidHistory.ID,
+		&bidHistory.BidID,
+		&bidHistory.Name,
+		&bidHistory.Description,
+		&bidHistory.Version,
+	)
+	return &bidHistory, err
+}
 
 func GetTenderHistoryByVersion(tenderID string, version int) (*models.TenderHistory, error) {
 	var tenderHistory models.TenderHistory

@@ -119,6 +119,15 @@ func validateUsername(w http.ResponseWriter, username string) {
 	}
 }
 
+func validateFeedback(w http.ResponseWriter, feedback string) {
+	if feedback == "" {
+		respondWithPanicError(w, http.StatusBadRequest, "Отзыв не может быть пустым")
+	}
+	if len(feedback) > 1000 {
+		respondWithPanicError(w, http.StatusBadRequest, "Отзыв слишком длинный, максимум 1000 символов")
+	}
+}
+
 func getAndValidateBidByID(w http.ResponseWriter, bidID string) *models.Bid {
 	bid, err := database.GetBidByID(bidID)
 	if err != nil {
@@ -183,6 +192,28 @@ func getAndValidateTenderHistoryVersion(w http.ResponseWriter, tenderID string, 
 		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при получении версии тендера")
 	}
 	return tenderHistoryVersion
+}
+
+func getAndValidateBidHistoryVersion(w http.ResponseWriter, bidID string, version int) *models.BidHistory {
+	bidHistoryVersion, err := database.GetBidHistoryByVersion(bidID, version)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			respondWithPanicError(w, http.StatusNotFound, "Версия предложения не найдена")
+		}
+		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при получении версии предложения")
+	}
+	return bidHistoryVersion
+}
+
+func getAndValidateBidByTenderAndAuthorID(w http.ResponseWriter, tenderID, authorID string) *models.Bid {
+	bid, err := database.GetBidByTenderAndAuthorID(tenderID, authorID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			respondWithPanicError(w, http.StatusNotFound, "Предложение не найдено")
+		}
+		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при получении предложения")
+	}
+	return bid
 }
 
 func saveTenderHistory(w http.ResponseWriter, tender *models.Tender) {
@@ -252,6 +283,7 @@ func createBidResponse(bid *models.Bid) *models.BidResponse {
 	return &models.BidResponse{
 		ID:         bid.ID,
 		Name:       bid.Name,
+		Status:     bid.Status,
 		AuthorType: bid.AuthorType,
 		AuthorID:   bid.AuthorID,
 		Version:    bid.Version,
@@ -309,4 +341,14 @@ func validateVersion(w http.ResponseWriter, versionParam string, currentVersion 
 		respondWithPanicError(w, http.StatusBadRequest, "Некорректная версия")
 	}
 	return version
+}
+
+func validateBidUniqueness(w http.ResponseWriter, authorID, tenderID string) {
+	exists, err := database.CheckBidExists(authorID, tenderID)
+	if err != nil {
+		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при проверке существующего предложения")
+	}
+	if exists {
+		respondWithPanicError(w, http.StatusForbidden, "Пользователь или организация уже создали предложение для данного тендера")
+	}
 }

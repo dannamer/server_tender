@@ -68,6 +68,12 @@ type Feedback struct {
 	CreatedAt   time.Time
 }
 
+type FeedbackResponse struct {
+	ID          string `json:"id"`
+	Description string `json:"description"`
+	CreatedAt   string `json:"createdAt"`
+}
+
 type BidResponse struct {
 	ID         string     `json:"id"`
 	Name       string     `json:"name"`

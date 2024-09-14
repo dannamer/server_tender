@@ -28,6 +28,7 @@ func CreateBidHandler(w http.ResponseWriter, r *http.Request) {
 	validateID(w, bidRequest.TenderID, "ID тендера")
 	validateName(w, bidRequest.Name, "предложения")
 	validateDescription(w, bidRequest.Description, "предложения")
+	validateBidUniqueness(w, bidRequest.AuthorID, bidRequest.TenderID)
 
 	if bidRequest.AuthorType == models.AuthorTypeOrganization {
 		getAndValidateOrganizationByID(w, bidRequest.AuthorID)
@@ -269,6 +270,7 @@ func UpdateBidStatusHandler(w http.ResponseWriter, r *http.Request) {
 	bidID := chi.URLParam(r, "bidId")
 	newStatus := r.URL.Query().Get("status")
 	username := r.URL.Query().Get("username")
+
 	validateID(w, bidID, "ID предложения")
 	validateStatus(w, models.Status(newStatus))
 	validateUsername(w, username)
@@ -303,21 +305,22 @@ func EditBidHandler(w http.ResponseWriter, r *http.Request) {
 	bidID := chi.URLParam(r, "bidId")
 	username := r.URL.Query().Get("username")
 
-	validateID(w, bidID, "ID предложения") 
+	validateID(w, bidID, "ID предложения")
 	validateUsername(w, username)
 
 	bid := getAndValidateBidByID(w, bidID)
 	user := getAndValidateUserByUsername(w, username)
 
-	if bid.AuthorType == models.AuthorTypeUser && bid.AuthorID != user.ID {
-		respondWithPanicError(w, http.StatusForbidden, "Недостаточно прав для редактирования тендера")
-	} else if bid.AuthorType == models.AuthorTypeOrganization && !database.CheckUserOrganizationResponsibility(user.ID, bid.AuthorID) {
-		respondWithPanicError(w, http.StatusForbidden, "Недостаточно прав для редактирования тендера")
+	if bid.AuthorType == models.AuthorTypeOrganization {
+		if !database.CheckUserOrganizationResponsibility(user.ID, bid.AuthorID) {
+			respondWithPanicError(w, http.StatusForbidden, "пользователь не имеет ответственности к организации предложения")
+		}
+	} else if user.ID != bid.AuthorID {
+		respondWithPanicError(w, http.StatusForbidden, "пользователь не имеет доступа к предложению")
 	}
 
 	var editBidHandler models.BidEditRequest
-	err := json.NewDecoder(r.Body).Decode(&editBidHandler)
-	if err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&editBidHandler); err != nil {
 		respondWithPanicError(w, http.StatusBadRequest, "Неверный формат запроса")
 	}
 	if editBidHandler.Name == "" && editBidHandler.Description == "" {
@@ -333,4 +336,125 @@ func EditBidHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(createBidResponse(bid))
+}
+
+func RollbackBidHandler(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		recover()
+	}()
+
+	bidID := chi.URLParam(r, "bidId")
+	versionParam := chi.URLParam(r, "version")
+	username := r.URL.Query().Get("username")
+
+	validateID(w, bidID, "ID тендера")
+	validateUsername(w, username)
+
+	bid := getAndValidateBidByID(w, bidID)
+	user := getAndValidateUserByUsername(w, username)
+
+	version := validateVersion(w, versionParam, bid.Version)
+
+	if bid.AuthorType == models.AuthorTypeOrganization {
+		if !database.CheckUserOrganizationResponsibility(user.ID, bid.AuthorID) {
+			respondWithPanicError(w, http.StatusForbidden, "пользователь не имеет ответственности к организации предложения")
+		}
+	} else if user.ID != bid.AuthorID {
+		respondWithPanicError(w, http.StatusForbidden, "пользователь не имеет доступа к предложению")
+	}
+
+	bidHistory := getAndValidateBidHistoryVersion(w, bid.ID, version)
+
+	saveBidHistory(w, bid)
+
+	bid.Name = bidHistory.Name
+	bid.Description = bidHistory.Description
+	bid.Version++
+
+	if err := database.UpdateBid(bid); err != nil {
+		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при обновлении тендера")
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(createBidResponse(bid))
+}
+
+func SubmitBidFeedbackHandler(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		recover()
+	}()
+
+	bidID := chi.URLParam(r, "bidId")
+	bidFeedback := r.URL.Query().Get("bidFeedback")
+	username := r.URL.Query().Get("username")
+
+	validateID(w, bidID, "ID предложения")
+	validateUsername(w, username)
+	validateFeedback(w, bidFeedback)
+
+	// Получаем пользователя по username
+	user := getAndValidateUserByUsername(w, username)
+	bid := getAndValidateBidByID(w, bidID)
+	teder := getAndValidateTenderByID(w, bid.TenderID)
+
+	if !database.CheckUserOrganizationResponsibility(user.ID, teder.OrganizationID) {
+		respondWithPanicError(w, http.StatusForbidden, "пользователь не имеет ответственности к организации тендера")
+	}
+
+	if bid.Status == models.Closed {
+		respondWithPanicError(w, http.StatusForbidden, "Отзыв может быть отправлен только на опубликованное или закрытое предложение")
+	}
+
+	feedback := &models.Feedback{
+		UserID:      user.ID,
+		BidID:       bid.ID,
+		BidFeedback: bidFeedback,
+	}
+
+	if err := database.SaveFeedback(feedback); err != nil {
+		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при сохранении отзыва")
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(createBidResponse(bid))
+}
+
+func GetBidReviewsHandler(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		recover()
+	}()
+
+	tenderID := chi.URLParam(r, "tenderId")
+	authorUsername := r.URL.Query().Get("authorUsername")
+	requesterUsername := r.URL.Query().Get("requesterUsername")
+
+	validateID(w, tenderID, "ID тендера")
+	validateUsername(w, authorUsername)
+	validateUsername(w, requesterUsername)
+
+	authorUser := getAndValidateUserByUsername(w, authorUsername)
+	requesterUser := getAndValidateUserByUsername(w, requesterUsername)
+
+	tender := getAndValidateTenderByID(w, tenderID)
+	bid := getAndValidateBidByTenderAndAuthorID(w, tender.ID, authorUser.ID)
+
+	if !database.CheckUserOrganizationResponsibility(requesterUser.ID, tender.OrganizationID) {
+		respondWithPanicError(w, http.StatusForbidden, "Недостаточно прав для просмотра отзывов на предложения")
+	}
+
+	limitParam := r.URL.Query().Get("limit")
+	offsetParam := r.URL.Query().Get("offset")
+
+	limit, offset := validateLimitAndOffset(w, limitParam, offsetParam)
+
+	feedbackResponse, err := database.GetBidReviews(bid.ID, limit, offset)
+	if err != nil {
+		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при получении отзывов")
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(feedbackResponse)
 }

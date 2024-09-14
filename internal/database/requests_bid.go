@@ -83,7 +83,7 @@ func GetBidByID(bidID string) (*models.Bid, error) {
 
 	// Получение всех отзывов (Feedback) для предложения
 	feedbackQuery := `
-		SELECT id, user_id, bid_id, feedback, created_at
+		SELECT id, user_id, bid_id, bid_feedback, created_at
 		FROM feedback
 		WHERE bid_id = $1
 	`
@@ -282,6 +282,18 @@ func SaveUserDecision(userDecision *models.UserDecision) error {
 	return err
 }
 
+func SaveFeedback(feedback *models.Feedback) error {
+	query := `
+		INSERT INTO feedback (id, user_id, bid_id, bid_feedback, created_at)
+		VALUES (uuid_generate_v4(), $1, $2, $3, CURRENT_TIMESTAMP)
+		RETURNING id, created_at
+	`
+	// Scan требует указателя на feedback.CreatedAt
+	err := dbConn.QueryRow(context.Background(), query, feedback.UserID, feedback.BidID, feedback.BidFeedback).
+		Scan(&feedback.ID, &feedback.CreatedAt)
+	return err
+}
+
 func GetBidsByTenderIDWithExpectation(tenderID string) ([]models.Bid, error) {
 	// Создаем список для хранения найденных предложений
 	var bids []models.Bid
@@ -352,7 +364,6 @@ func UpdateBid(bid *models.Bid) error {
 	return err
 }
 
-
 func GetUserByID(userID string) (*models.User, error) {
 	var user models.User
 
@@ -415,4 +426,121 @@ func SaveBidHistory(bidHistory *models.BidHistory) error {
 		bidHistory.Version,
 	)
 	return err
+}
+
+func GetFeedbackByBidID(bidID string) ([]models.Feedback, error) {
+	query := `
+        SELECT id, user_id, bid_id, bid_feedback, created_at
+        FROM feedback
+        WHERE bid_id = $1
+        ORDER BY created_at ASC
+    `
+
+	rows, err := dbConn.Query(context.Background(), query, bidID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	feedbacks := []models.Feedback{}
+
+	for rows.Next() {
+		var feedback models.Feedback
+		if err := rows.Scan(&feedback.ID, &feedback.UserID, &feedback.BidID, &feedback.BidFeedback, &feedback.CreatedAt); err != nil {
+			return nil, err
+		}
+		feedbacks = append(feedbacks, feedback)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	// Возвращаем слайс отзывов
+	return feedbacks, nil
+}
+
+
+func CheckBidExists(authorID, tenderID string) (bool, error) {
+	query := `
+		SELECT EXISTS (
+			SELECT 1 
+			FROM bids 
+			WHERE author_id = $1 AND tender_id = $2
+		)
+	`
+	var exists bool
+	err := dbConn.QueryRow(context.Background(), query, authorID, tenderID).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
+}
+
+func GetBidByTenderAndAuthorID(tenderID, authorID string) (*models.Bid, error) {
+	var bid models.Bid
+
+	// SQL-запрос для получения предложения
+	query := `
+		SELECT id, name, description, status, tender_id, author_type, author_id, version, coordination, created_at
+		FROM bids
+		WHERE tender_id = $1 AND author_id = $2
+	`
+
+	// Выполняем запрос с параметрами tenderID и authorID
+	err := dbConn.QueryRow(context.Background(), query, tenderID, authorID).Scan(
+		&bid.ID,
+		&bid.Name,
+		&bid.Description,
+		&bid.Status,
+		&bid.TenderID,
+		&bid.AuthorType,
+		&bid.AuthorID,
+		&bid.Version,
+		&bid.Сoordination,
+		&bid.CreatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &bid, nil
+}
+
+func GetBidReviews(bidID string, limit, offset int) ([]models.FeedbackResponse, error) {
+	// SQL-запрос для получения списка отзывов
+	query := `
+		SELECT id, bid_feedback, created_at
+		FROM feedback
+		WHERE bid_id = $1
+		ORDER BY created_at DESC
+		LIMIT $2 OFFSET $3
+	`
+
+	// Выполняем запрос к базе данных
+	rows, err := dbConn.Query(context.Background(), query, bidID, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка при получении отзывов: %v", err)
+	}
+	defer rows.Close()
+
+	// Обрабатываем результат запроса
+	feedbackResponses := []models.FeedbackResponse{}
+	for rows.Next() {
+		var feedbackResponse models.FeedbackResponse
+		var createdAt time.Time
+		if err := rows.Scan(&feedbackResponse.ID, &feedbackResponse.Description, &createdAt); err != nil {
+			return nil, fmt.Errorf("ошибка при сканировании отзыва: %v", err)
+		}
+		// Преобразуем время в формат RFC3339
+		feedbackResponse.CreatedAt = createdAt.Format(time.RFC3339)
+		feedbackResponses = append(feedbackResponses, feedbackResponse)
+	}
+
+	// Проверка на наличие ошибок при итерации по строкам
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("ошибка при чтении строк отзывов: %v", err)
+	}
+
+	return feedbackResponses, nil
 }
