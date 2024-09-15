@@ -30,13 +30,13 @@ func CreateBidHandler(w http.ResponseWriter, r *http.Request) {
 	validateDescription(w, bidRequest.Description, "предложения")
 	
 	tender := getAndValidateTenderByID(w, bidRequest.TenderID)
-	user := getAndValidateUserByUsername(w, bidRequest.AuthorID)
+	getAndValidateUserByUsername(w, bidRequest.AuthorID)
 
-	if bidRequest.AuthorType == models.AuthorTypeOrganization {
-		if !database.HasUserOrganization(user.ID) {
-			respondWithPanicError(w, http.StatusForbidden, "Пользователь не связан с организацией")
-		}
-	}
+	// if bidRequest.AuthorType == models.AuthorTypeOrganization {
+	// 	if !database.HasUserOrganization(user.ID) {
+	// 		respondWithPanicError(w, http.StatusForbidden, "Пользователь не связан с организацией")
+	// 	}
+	// }
 	
 	if tender.Status != models.Published {
 		respondWithPanicError(w, http.StatusForbidden, "Тендер ещё не опубликован или закрыт")
@@ -181,7 +181,7 @@ func SubmitBidDecisionHandler(w http.ResponseWriter, r *http.Request) {
 	user := getAndValidateUserByUsername(w, username)
 	bid := getAndValidateBidByID(w, bidID)
 	tender := getAndValidateTenderByID(w, bid.TenderID)
-
+		
 	if !database.CheckUserOrganizationResponsibility(user.ID, tender.OrganizationID) {
 		respondWithPanicError(w, http.StatusForbidden, "пользователь не имеет ответственности к организации стенда")
 	}

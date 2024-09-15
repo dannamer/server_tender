@@ -150,27 +150,27 @@ func getAndValidateUserByUsername(w http.ResponseWriter, username string) *model
 	return user
 }
 
-func getAndValidateUserByID(w http.ResponseWriter, userID string) *models.User {
-	user, err := database.GetUserByID(userID)
-	if err != nil {
-		if err == pgx.ErrNoRows {
-			respondWithPanicError(w, http.StatusUnauthorized, fmt.Sprintf("Пользователь с ID '%s' не найден", userID))
-		}
-		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при получении данных пользователя")
-	}
-	return user
-}
+// func getAndValidateUserByID(w http.ResponseWriter, userID string) *models.User {
+// 	user, err := database.GetUserByID(userID)
+// 	if err != nil {
+// 		if err == pgx.ErrNoRows {
+// 			respondWithPanicError(w, http.StatusUnauthorized, fmt.Sprintf("Пользователь с ID '%s' не найден", userID))
+// 		}
+// 		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при получении данных пользователя")
+// 	}
+// 	return user
+// }
 
-func getAndValidateOrganizationByID(w http.ResponseWriter, organizationID string) *models.Organization {
-	organization, err := database.GetOrganizationByID(organizationID)
-	if err != nil {
-		if err == pgx.ErrNoRows {
-			respondWithPanicError(w, http.StatusNotFound, fmt.Sprintf("Организация с ID '%s' не найдена", organizationID))
-		}
-		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при получении данных организации")
-	}
-	return organization
-}
+// func getAndValidateOrganizationByID(w http.ResponseWriter, organizationID string) *models.Organization {
+// 	organization, err := database.GetOrganizationByID(organizationID)
+// 	if err != nil {
+// 		if err == pgx.ErrNoRows {
+// 			respondWithPanicError(w, http.StatusNotFound, fmt.Sprintf("Организация с ID '%s' не найдена", organizationID))
+// 		}
+// 		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при получении данных организации")
+// 	}
+// 	return organization
+// }
 
 func getAndValidateTenderByID(w http.ResponseWriter, tenderID string) *models.Tender {
 	tender, err := database.GetTenderByID(tenderID)
@@ -343,15 +343,16 @@ func validateVersion(w http.ResponseWriter, versionParam string, currentVersion 
 	return version
 }
 
-func validateBidUniqueness(w http.ResponseWriter, authorID, tenderID string) {
-	exists, err := database.CheckBidExists(authorID, tenderID)
-	if err != nil {
-		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при проверке существующего предложения")
-	}
-	if exists {
-		respondWithPanicError(w, http.StatusForbidden, "Пользователь или организация уже создали предложение для данного тендера")
-	}
-}
+// func validateBidUniqueness(w http.ResponseWriter, authorID, tenderID string) {
+// 	exists, err := database.CheckBidExists(authorID, tenderID)
+// 	if err != nil {
+// 		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при проверке существующего предложения")
+// 	}
+// 	if exists {
+// 		respondWithPanicError(w, http.StatusForbidden, "Пользователь или организация уже создали предложение для данного тендера")
+// 	}
+// }
+
 
 // func validateBidUniquenessForOrganization(w http.ResponseWriter, organizationID string, tenderID string) bool {
 // 	query := `
