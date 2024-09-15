@@ -5,36 +5,14 @@ import (
 	"fmt"
 	"tender-service/internal/models"
 	"time"
-
-	"github.com/jackc/pgx/v4"
 )
 
-func EmployeeExists(employeeID string) (bool, error) {
-	query := `SELECT EXISTS(SELECT 1 FROM employee WHERE id = $1)`
-
-	var exists bool
-	err := dbConn.QueryRow(context.Background(), query, employeeID).Scan(&exists)
-
-	return exists, err
-}
-
-func OrganizationExists(organizationID string) (bool, error) {
-	query := `SELECT EXISTS(SELECT 1 FROM organization WHERE id = $1)`
-
-	var exists bool
-	err := dbConn.QueryRow(context.Background(), query, organizationID).Scan(&exists)
-
-	return exists, err
-}
-
-// починить..
 func SaveBid(bid *models.Bid) error {
 	query := `
         INSERT INTO bids (id, name, description, status, tender_id, author_type, author_id, version, coordination, created_at)
         VALUES (uuid_generate_v4(), $1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
         RETURNING id, created_at
     `
-	// Выполняем запрос и захватываем автоматически сгенерированные поля id и created_at
 	err := dbConn.QueryRow(context.Background(), query, bid.Name, bid.Description, bid.Status, bid.TenderID, bid.AuthorType, bid.AuthorID, bid.Version, bid.Сoordination).
 		Scan(&bid.ID, &bid.CreatedAt)
 
@@ -44,20 +22,12 @@ func SaveBid(bid *models.Bid) error {
 // версия 1
 func GetBidByID(bidID string) (*models.Bid, error) {
 	var bid models.Bid
-
-	// Создаем контекст с тайм-аутом 5 секунд
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	// Запрос на получение основных данных предложения
 	query := `
 		SELECT id, name, description, status, tender_id, author_type, author_id, version, created_at
 		FROM bids
 		WHERE id = $1
 	`
-
-	// Выполняем запрос и заполняем данные основной структуры Bid
-	err := dbConn.QueryRow(ctx, query, bidID).Scan(
+	err := dbConn.QueryRow(context.Background(), query, bidID).Scan(
 		&bid.ID,
 		&bid.Name,
 		&bid.Description,
@@ -71,14 +41,12 @@ func GetBidByID(bidID string) (*models.Bid, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	// Получение всех отзывов (Feedback) для предложения
 	feedbackQuery := `
 		SELECT id, user_id, bid_id, bid_feedback, created_at
 		FROM feedback
 		WHERE bid_id = $1
 	`
-	rows, err := dbConn.Query(ctx, feedbackQuery, bidID)
+	rows, err := dbConn.Query(context.Background(), feedbackQuery, bidID)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка при получении отзывов: %v", err)
 	}
@@ -94,14 +62,12 @@ func GetBidByID(bidID string) (*models.Bid, error) {
 		feedbacks = append(feedbacks, feedback)
 	}
 	bid.Feedback = feedbacks
-
-	// Получение решений пользователей (UserDecision) по предложению
 	decisionQuery := `
 		SELECT id, user_id, bid_id, decision
 		FROM user_decisions
 		WHERE bid_id = $1
 	`
-	decisionRows, err := dbConn.Query(ctx, decisionQuery, bidID)
+	decisionRows, err := dbConn.Query(context.Background(), decisionQuery, bidID)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка при получении решений пользователей: %v", err)
 	}
@@ -130,8 +96,6 @@ func GetBidsByUserID(authorID string, limit, offset int) ([]models.BidResponse, 
         ORDER BY name
         LIMIT $2 OFFSET $3
     `
-
-	// Выполняем запрос с использованием контекста
 	rows, err := dbConn.Query(context.Background(), query, authorID, limit, offset)
 	if err != nil {
 		return nil, err
@@ -148,14 +112,12 @@ func GetBidsByUserID(authorID string, limit, offset int) ([]models.BidResponse, 
 		bids = append(bids, bid)
 	}
 
-	// Проверяем ошибки после завершения итерации
 	if err = rows.Err(); err != nil {
 		return nil, err
 	}
 
 	return bids, nil
 }
-
 
 func GetBidsByTenderID(tenderID string, limit, offset int) ([]models.BidResponse, error) {
 	bids := []models.BidResponse{}
@@ -188,24 +150,6 @@ func GetBidsByTenderID(tenderID string, limit, offset int) ([]models.BidResponse
 	}
 	return bids, nil
 }
-
-func GetUserOrganizationID(userID string) (string, error) {
-	query := `
-		SELECT organization_id
-		FROM employee_organization
-		WHERE user_id = $1
-	`
-	var organizationID string
-	err := dbConn.QueryRow(context.Background(), query, userID).Scan(&organizationID)
-	if err != nil {
-		if err == pgx.ErrNoRows {
-			return "", nil // Пользователь не связан с организацией
-		}
-		return "", err
-	}
-	return organizationID, nil
-}
-
 // версия 1
 func GetUserByUsername(username string) (*models.User, error) {
 	var user models.User
@@ -215,8 +159,6 @@ func GetUserByUsername(username string) (*models.User, error) {
 		FROM employee
 		WHERE username = $1
 	`
-
-	// Выполняем запрос к базе данных
 	err := dbConn.QueryRow(context.Background(), query, username).Scan(
 		&user.ID,
 		&user.Username,
@@ -260,31 +202,26 @@ func SaveFeedback(feedback *models.Feedback) error {
 		VALUES (uuid_generate_v4(), $1, $2, $3, CURRENT_TIMESTAMP)
 		RETURNING id, created_at
 	`
-	// Scan требует указателя на feedback.CreatedAt
 	err := dbConn.QueryRow(context.Background(), query, feedback.UserID, feedback.BidID, feedback.BidFeedback).
 		Scan(&feedback.ID, &feedback.CreatedAt)
 	return err
 }
 
 func GetBidsByTenderIDWithExpectation(tenderID string) ([]models.Bid, error) {
-	// Создаем список для хранения найденных предложений
 	var bids []models.Bid
 
-	// SQL-запрос для поиска предложений по tender_id и состоянию Expectation
 	query := `
 		SELECT id, name, description, status, tender_id, author_type, author_id, version, coordination, created_at
 		FROM bids
 		WHERE tender_id = $1 AND coordination = $2
 	`
 
-	// Выполняем запрос
 	rows, err := dbConn.Query(context.Background(), query, tenderID, models.Expectation)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка при получении предложений: %v", err)
 	}
 	defer rows.Close()
 
-	// Обрабатываем результаты запроса
 	for rows.Next() {
 		var bid models.Bid
 		err := rows.Scan(
@@ -304,8 +241,6 @@ func GetBidsByTenderIDWithExpectation(tenderID string) ([]models.Bid, error) {
 		}
 		bids = append(bids, bid)
 	}
-
-	// Проверяем на наличие ошибок после завершения итерации
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("ошибка при обработке предложений: %v", err)
 	}
@@ -313,7 +248,6 @@ func GetBidsByTenderIDWithExpectation(tenderID string) ([]models.Bid, error) {
 	return bids, nil
 }
 
-// UpdateBid обновляет все данные предложения по его ID
 func UpdateBid(bid *models.Bid) error {
 	query := `
 		UPDATE bids 
@@ -384,13 +318,10 @@ func GetOrganizationByID(organizationID string) (*models.Organization, error) {
 }
 
 func SaveBidHistory(bidHistory *models.BidHistory) error {
-	// Запрос на вставку данных в таблицу bid_history
 	query := `
 		INSERT INTO bid_history (id, bid_id, name, description, version)
 		VALUES (uuid_generate_v4(), $1, $2, $3, $4)
 	`
-
-	// Выполняем запрос с параметрами из структуры BidHistory
 	_, err := dbConn.Exec(context.Background(), query,
 		bidHistory.BidID,
 		bidHistory.Name,
@@ -428,10 +359,8 @@ func GetFeedbackByBidID(bidID string) ([]models.Feedback, error) {
 		return nil, err
 	}
 
-	// Возвращаем слайс отзывов
 	return feedbacks, nil
 }
-
 
 func CheckBidExists(authorID, tenderID string) (bool, error) {
 	query := `
@@ -449,19 +378,13 @@ func CheckBidExists(authorID, tenderID string) (bool, error) {
 	return exists, nil
 }
 
-
-
 func GetBidByTenderAndAuthorID(tenderID, authorID string) (*models.Bid, error) {
 	var bid models.Bid
-
-	// SQL-запрос для получения предложения
 	query := `
 		SELECT id, name, description, status, tender_id, author_type, author_id, version, coordination, created_at
 		FROM bids
 		WHERE tender_id = $1 AND author_id = $2
 	`
-
-	// Выполняем запрос с параметрами tenderID и authorID
 	err := dbConn.QueryRow(context.Background(), query, tenderID, authorID).Scan(
 		&bid.ID,
 		&bid.Name,
@@ -482,7 +405,6 @@ func GetBidByTenderAndAuthorID(tenderID, authorID string) (*models.Bid, error) {
 }
 
 func GetBidReviews(bidID string, limit, offset int) ([]models.FeedbackResponse, error) {
-	// SQL-запрос для получения списка отзывов
 	query := `
 		SELECT id, bid_feedback, created_at
 		FROM feedback
@@ -490,15 +412,12 @@ func GetBidReviews(bidID string, limit, offset int) ([]models.FeedbackResponse, 
 		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3
 	`
-
-	// Выполняем запрос к базе данных
 	rows, err := dbConn.Query(context.Background(), query, bidID, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка при получении отзывов: %v", err)
 	}
 	defer rows.Close()
 
-	// Обрабатываем результат запроса
 	feedbackResponses := []models.FeedbackResponse{}
 	for rows.Next() {
 		var feedbackResponse models.FeedbackResponse
@@ -511,14 +430,12 @@ func GetBidReviews(bidID string, limit, offset int) ([]models.FeedbackResponse, 
 		feedbackResponses = append(feedbackResponses, feedbackResponse)
 	}
 
-	// Проверка на наличие ошибок при итерации по строкам
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("ошибка при чтении строк отзывов: %v", err)
 	}
 
 	return feedbackResponses, nil
 }
-
 
 func HasUserOrganization(userID string) bool {
 	query := `

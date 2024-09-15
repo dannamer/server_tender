@@ -2,17 +2,12 @@ package handlers
 
 import (
 	"encoding/json"
-	// "fmt"
 	"github.com/go-chi/chi/v5"
-	// "github.com/jackc/pgx/v4"
 	"net/http"
-	// "strconv"
 	"tender-service/internal/database"
 	"tender-service/internal/models"
-	// "time"
 )
 
-// исправить
 func CreateBidHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		recover()
@@ -336,7 +331,6 @@ func SubmitBidFeedbackHandler(w http.ResponseWriter, r *http.Request) {
 	validateUsername(w, username)
 	validateFeedback(w, bidFeedback)
 
-	// Получаем пользователя по username
 	user := getAndValidateUserByUsername(w, username)
 	bid := getAndValidateBidByID(w, bidID)
 	teder := getAndValidateTenderByID(w, bid.TenderID)

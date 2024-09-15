@@ -150,28 +150,6 @@ func getAndValidateUserByUsername(w http.ResponseWriter, username string) *model
 	return user
 }
 
-// func getAndValidateUserByID(w http.ResponseWriter, userID string) *models.User {
-// 	user, err := database.GetUserByID(userID)
-// 	if err != nil {
-// 		if err == pgx.ErrNoRows {
-// 			respondWithPanicError(w, http.StatusUnauthorized, fmt.Sprintf("Пользователь с ID '%s' не найден", userID))
-// 		}
-// 		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при получении данных пользователя")
-// 	}
-// 	return user
-// }
-
-// func getAndValidateOrganizationByID(w http.ResponseWriter, organizationID string) *models.Organization {
-// 	organization, err := database.GetOrganizationByID(organizationID)
-// 	if err != nil {
-// 		if err == pgx.ErrNoRows {
-// 			respondWithPanicError(w, http.StatusNotFound, fmt.Sprintf("Организация с ID '%s' не найдена", organizationID))
-// 		}
-// 		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при получении данных организации")
-// 	}
-// 	return organization
-// }
-
 func getAndValidateTenderByID(w http.ResponseWriter, tenderID string) *models.Tender {
 	tender, err := database.GetTenderByID(tenderID)
 	if err != nil {
@@ -341,80 +319,4 @@ func validateVersion(w http.ResponseWriter, versionParam string, currentVersion 
 		respondWithPanicError(w, http.StatusBadRequest, "Некорректная версия")
 	}
 	return version
-}
-
-// func validateBidUniqueness(w http.ResponseWriter, authorID, tenderID string) {
-// 	exists, err := database.CheckBidExists(authorID, tenderID)
-// 	if err != nil {
-// 		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при проверке существующего предложения")
-// 	}
-// 	if exists {
-// 		respondWithPanicError(w, http.StatusForbidden, "Пользователь или организация уже создали предложение для данного тендера")
-// 	}
-// }
-
-
-// func validateBidUniquenessForOrganization(w http.ResponseWriter, organizationID string, tenderID string) bool {
-// 	query := `
-// 		SELECT EXISTS (
-// 			SELECT 1 
-// 			FROM bids 
-// 			WHERE author_id = $1 AND tender_id = $2 AND author_type = 'Organization'
-// 		)
-// 	`
-
-// 	var exists bool
-// 	err := dbConn.QueryRow(context.Background(), query, organizationID, tenderID).Scan(&exists)
-// 	if err != nil {
-// 		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при проверке уникальности предложения для организации")
-// 		return true
-// 	}
-
-// 	if exists {
-// 		respondWithPanicError(w, http.StatusConflict, "Организация уже создала предложение для данного тендера")
-// 		return true
-// 	}
-
-// 	return false
-// }
-
-func ValidateUserBidCreation(w http.ResponseWriter, userID, organizationID, tenderID string, authorType models.AuthorType) bool {
-	// Если тип автора - пользователь
-	if authorType == models.AuthorTypeUser {
-		// Проверяем, связан ли пользователь с организацией
-		if database.CheckUserOrganizationResponsibility(userID, organizationID) {
-			// Если пользователь связан с организацией, он не может создавать предложения от своего имени
-			respondWithPanicError(w, http.StatusForbidden, "Пользователь, связанный с организацией, не может создавать предложения от своего имени")
-		}
-		
-		// Проверяем, создавал ли пользователь уже предложение для этого тендера
-		exists, err := database.CheckBidExists(userID, tenderID)
-		if err != nil {
-			respondWithPanicError(w, http.StatusInternalServerError, "Ошибка проверки существования предложения от пользователя")
-			return false
-		}
-		if exists {
-			// Если пользователь уже создал предложение
-			respondWithPanicError(w, http.StatusConflict, "Пользователь уже создал предложение для данного тендера")
-			return false
-		}
-	} else if authorType == models.AuthorTypeOrganization {
-		// Если тип автора - организация, проверяем, создавала ли организация предложение
-		exists, err := database.CheckBidExists(organizationID, tenderID)
-		if err != nil {
-			respondWithPanicError(w, http.StatusInternalServerError, "Ошибка проверки существования предложения от организации")
-			return false
-		}
-		if exists {
-			// Если организация уже создала предложение
-			respondWithPanicError(w, http.StatusConflict, "Организация уже создала предложение для данного тендера")
-			return false
-		}
-	} else {
-		respondWithPanicError(w, http.StatusBadRequest, "Некорректный тип автора")
-		return false
-	}
-
-	// Все проверки пройдены
-	return true
 }

@@ -19,13 +19,10 @@ func CheckUserOrganizationResponsibility(userID string, organizationID string) b
 			WHERE org.user_id = $1 AND org.organization_id = $2
 		)
 	`
-
-	// Выполняем запрос к базе данных
 	err := dbConn.QueryRow(context.Background(), query, userID, organizationID).Scan(&exists)
 	if err != nil {
 		return false
 	}
-	// Возвращаем результат проверки
 	return exists
 }
 
@@ -49,9 +46,7 @@ func SaveTender(tender *models.Tender) error {
 	return err
 }
 
-// GetTenders возвращает список тендеров с учетом фильтров по типам услуг, лимита и смещения
 func GetTendersResponse(serviceTypes []string, limit, offset int) ([]models.TenderResponse, error) {
-	// Формируем базовый SQL-запрос
 	query := `
 		SELECT id, name, description, service_type, status, version, created_at 
 		FROM tenders
@@ -66,15 +61,12 @@ func GetTendersResponse(serviceTypes []string, limit, offset int) ([]models.Tend
 	}
 	args = append(args, limit, offset)
 
-	// Выполняем запрос к базе данных
 	rows, err := dbConn.Query(context.Background(), query, args...)
 	if err != nil {
 		log.Printf("Ошибка выполнения запроса к базе данных: %v", err)
 		return nil, err
 	}
 	defer rows.Close()
-
-	// Обрабатываем результат и заполняем список тендеров
 	tenders := []models.TenderResponse{}
 	for rows.Next() {
 		var tender models.TenderResponse
@@ -88,7 +80,6 @@ func GetTendersResponse(serviceTypes []string, limit, offset int) ([]models.Tend
 		tenders = append(tenders, tender)
 	}
 
-	// Проверяем наличие ошибок после завершения итерации
 	if err := rows.Err(); err != nil {
 		log.Printf("Ошибка при чтении строк: %v", err)
 		return nil, err
@@ -137,15 +128,11 @@ func GetTendersByUsername(usernameID string, limit, offset int) ([]models.Tender
 // версия 1
 func GetTenderByID(tenderID string) (*models.Tender, error) {
 	var tender models.Tender
-
-	// SQL-запрос для получения тендера по ID
 	query := `
 		SELECT id, name, description, service_type, status, organization_id, creator_username_id, version, created_at
 		FROM tenders
 		WHERE id = $1
 	`
-
-	// Выполняем запрос и сканируем результат в структуру Tender
 	err := dbConn.QueryRow(context.Background(), query, tenderID).Scan(
 		&tender.ID,
 		&tender.Name,
@@ -157,13 +144,10 @@ func GetTenderByID(tenderID string) (*models.Tender, error) {
 		&tender.Version,
 		&tender.CreatedAt,
 	)
-
-	// Если произошла ошибка, возвращаем ее
 	if err != nil {
 		return nil, err
 	}
 
-	// Возвращаем структуру Tender и nil как ошибку
 	return &tender, nil
 }
 
@@ -188,13 +172,10 @@ func UpdateTender(tender *models.Tender) error {
 }
 
 func SaveTenderHistory(tenderHistory *models.TenderHistory) error {
-	// Запрос на вставку данных в таблицу tender_history
 	query := `
 		INSERT INTO tender_history (id, tender_id, name, description, service_type, version)
 		VALUES (uuid_generate_v4(), $1, $2, $3, $4, $5)
 	`
-
-	// Выполняем запрос с параметрами из структуры TenderHistory
 	_, err := dbConn.Exec(context.Background(), query,
 		tenderHistory.TenderID,
 		tenderHistory.Name,

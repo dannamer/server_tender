@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"github.com/go-chi/chi/v5"
-	// "log"
 	"net/http"
 	"tender-service/internal/database"
 	"tender-service/internal/models"
