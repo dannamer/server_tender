@@ -14,8 +14,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("Ошибка подключения к базе данных: %v", err)
 	}
+	database.CreateTables()
 	r := chi.NewRouter()
-	// Привязываем обработчики для API
 	r.Get("/api/ping", handlers.PingHandler)                    // Проверка доступности сервера
 	r.Post("/api/tenders/new", handlers.CreateTenderHandler)       // Создание нового тендера
 	r.Get("/api/tenders/{tenderId}/status", handlers.GetTenderStatusHandler) // Получение статуса тендера
@@ -36,8 +36,6 @@ func main() {
 	r.Get("/api/bids/{tenderId}/reviews", handlers.SubmitBidDecisionHandler)
 	address := "0.0.0.0:8080"
 	log.Printf("Сервер запущен по адресу %s", address)
-
-	// Запускаем сервер
 	if err := http.ListenAndServe(address, r); err != nil {
 		log.Fatalf("Ошибка при запуске сервера: %v", err)
 	}

@@ -10,28 +10,19 @@ import (
 )
 
 func EmployeeExists(employeeID string) (bool, error) {
-	// Устанавливаем тайм-аут на 5 секунд
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel() // Отмена контекста после завершения функции
-
 	query := `SELECT EXISTS(SELECT 1 FROM employee WHERE id = $1)`
 
 	var exists bool
-	err := dbConn.QueryRow(ctx, query, employeeID).Scan(&exists)
+	err := dbConn.QueryRow(context.Background(), query, employeeID).Scan(&exists)
 
 	return exists, err
 }
 
 func OrganizationExists(organizationID string) (bool, error) {
-	// Устанавливаем тайм-аут на 5 секунд
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel() // Отмена контекста после завершения функции
-
 	query := `SELECT EXISTS(SELECT 1 FROM organization WHERE id = $1)`
 
 	var exists bool
-	// Выполняем запрос с тайм-аутом
-	err := dbConn.QueryRow(ctx, query, organizationID).Scan(&exists)
+	err := dbConn.QueryRow(context.Background(), query, organizationID).Scan(&exists)
 
 	return exists, err
 }
