@@ -158,11 +158,7 @@ func GetBidsByUserID(authorID string, limit, offset int) ([]models.BidResponse, 
 
 
 func GetBidsByTenderID(tenderID string, limit, offset int) ([]models.BidResponse, error) {
-	var bids []models.BidResponse
-
-	// Создаем контекст с тайм-аутом 5 секунд
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	bids := []models.BidResponse{}
 
 	query := `
         SELECT id, name, status, author_type, author_id, version, created_at
@@ -172,7 +168,7 @@ func GetBidsByTenderID(tenderID string, limit, offset int) ([]models.BidResponse
         LIMIT $2 OFFSET $3
     `
 
-	rows, err := dbConn.Query(ctx, query, tenderID, limit, offset)
+	rows, err := dbConn.Query(context.Background(), query, tenderID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -180,17 +176,16 @@ func GetBidsByTenderID(tenderID string, limit, offset int) ([]models.BidResponse
 
 	for rows.Next() {
 		var bid models.BidResponse
-		if err := rows.Scan(&bid.ID, &bid.Name, &bid.Status, &bid.AuthorType, &bid.AuthorID, &bid.Version, &bid.CreatedAt); err != nil {
+		var createdAt time.Time
+		if err := rows.Scan(&bid.ID, &bid.Name, &bid.Status, &bid.AuthorType, &bid.AuthorID, &bid.Version, &createdAt); err != nil {
 			return nil, err
 		}
+		bid.CreatedAt = createdAt.Format(time.RFC3339)
 		bids = append(bids, bid)
 	}
-
-	// Проверяем ошибки после завершения итерации
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-
 	return bids, nil
 }
 

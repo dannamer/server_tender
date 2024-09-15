@@ -30,14 +30,15 @@ func CreateBidHandler(w http.ResponseWriter, r *http.Request) {
 	validateDescription(w, bidRequest.Description, "предложения")
 	
 	tender := getAndValidateTenderByID(w, bidRequest.TenderID)
-	getAndValidateUserByUsername(w, bidRequest.AuthorID)
+	user := getAndValidateUserByUsername(w, bidRequest.AuthorID)
 
-	// if bidRequest.AuthorType == models.AuthorTypeOrganization {
-	// 	if !database.HasUserOrganization(user.ID) {
-	// 		respondWithPanicError(w, http.StatusForbidden, "Пользователь не связан с организацией")
-	// 	}
-	// }
+	if bidRequest.AuthorType == models.AuthorTypeOrganization {
+		if !database.HasUserOrganization(user.ID) {
+			respondWithPanicError(w, http.StatusForbidden, "Пользователь не связан с организацией")
+		}
+	}
 	
+
 	if tender.Status != models.Published {
 		respondWithPanicError(w, http.StatusForbidden, "Тендер ещё не опубликован или закрыт")
 	}
@@ -76,94 +77,37 @@ func GetUserBidsHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(bids)
 }
 
-//исправить
-// func GetBidsForTenderHandler(w http.ResponseWriter, r *http.Request) {
-// 	// Проверка метода запроса
-// 	if r.Method != http.MethodGet {
-// 		respondWithPanicError(w, http.StatusMethodNotAllowed, "Метод не поддерживается")
-// 		return
-// 	}
+func GetBidsForTenderHandler(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		recover()
+	}()
 
-// 	// Получаем параметры из URL
-// 	tenderID := chi.URLParam(r, "tenderId")
-// 	username := r.URL.Query().Get("username")
+	tenderID := chi.URLParam(r, "tenderId")
+	username := r.URL.Query().Get("username")
 
-// 	// Проверяем, заданы ли обязательные параметры
-// 	if tenderID == "" || username == "" {
-// 		respondWithPanicError(w, http.StatusBadRequest, "Отсутствуют обязательные параметры: tenderId или username")
-// 		return
-// 	}
+	validateID(w, tenderID, "ID тендера")
+	validateUsername(w, username)
 
-// 	// Получаем параметры пагинации
-// 	limitParam := r.URL.Query().Get("limit")
-// 	offsetParam := r.URL.Query().Get("offset")
-// 	limit := 5  // Значение по умолчанию
-// 	offset := 0 // Значение по умолчанию
+	limitParam := r.URL.Query().Get("limit")
+	offsetParam := r.URL.Query().Get("offset")
+	limit, offset := validateLimitAndOffset(w, limitParam, offsetParam)
+	
+	user := getAndValidateUserByUsername(w, username)
+	tender := getAndValidateTenderByID(w, tenderID)
+	
+	if !database.CheckUserOrganizationResponsibility(user.ID, tender.OrganizationID) {
+		respondWithPanicError(w, http.StatusForbidden, "Недостаточно прав для выполнения действия")
+	}
+	bids, err := database.GetBidsByTenderID(tenderID, limit, offset)
+	if err != nil {
+		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при получении предложений")
+		return
+	}
 
-// 	// Парсим limit и offset
-// 	if limitParam != "" {
-// 		if parsedLimit, err := strconv.Atoi(limitParam); err == nil && parsedLimit > 0 {
-// 			limit = parsedLimit
-// 		} else {
-// 			respondWithPanicError(w, http.StatusBadRequest, "Некорректное значение limit")
-// 			return
-// 		}
-// 	}
-// 	if offsetParam != "" {
-// 		if parsedOffset, err := strconv.Atoi(offsetParam); err == nil && parsedOffset >= 0 {
-// 			offset = parsedOffset
-// 		} else {
-// 			respondWithPanicError(w, http.StatusBadRequest, "Некорректное значение offset")
-// 			return
-// 		}
-// 	}
-
-// 	userExists, err := database.CheckUserExists(username)
-// 	if err != nil {
-// 		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка проверки пользователя")
-// 		return
-// 	}
-
-// 	if !userExists {
-// 		respondWithPanicError(w, http.StatusUnauthorized, "Пользователь не существует")
-// 		return
-// 	}
-
-// 	// Проверяем, существует ли тендер
-// 	tender, err := database.GetTenderByID(tenderID)
-// 	if err != nil {
-// 		if err == pgx.ErrNoRows {
-// 			respondWithPanicError(w, http.StatusNotFound, "Тендер не найден")
-// 			return
-// 		}
-// 		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при получении тендера")
-// 		return
-// 	}
-
-// 	// Проверяем права пользователя
-// 	if !database.CheckUserOrganizationResponsibility(username, tender.OrganizationID) {
-// 		respondWithPanicError(w, http.StatusForbidden, "Недостаточно прав для выполнения действия")
-// 		return
-// 	}
-
-// 	// Получаем список предложений для указанного тендера
-// 	bids, err := database.GetBidsByTenderID(tenderID, limit, offset)
-// 	if err != nil {
-// 		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при получении предложений")
-// 		return
-// 	}
-
-// 	// Если предложений нет, возвращаем 404
-// 	if len(bids) == 0 {
-// 		respondWithPanicError(w, http.StatusNotFound, "Предложения не найдены")
-// 		return
-// 	}
-
-// 	// Возвращаем список предложений
-// 	w.Header().Set("Content-Type", "application/json")
-// 	w.WriteHeader(http.StatusOK)
-// 	json.NewEncoder(w).Encode(bids)
-// }
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(bids)
+}
 
 func SubmitBidDecisionHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
