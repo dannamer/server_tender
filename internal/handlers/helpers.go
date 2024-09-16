@@ -150,6 +150,17 @@ func getAndValidateUserByUsername(w http.ResponseWriter, username string) *model
 	return user
 }
 
+func getAndValidateUserByID(w http.ResponseWriter, userID string) *models.User {
+	user, err := database.GetUserByID(userID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			respondWithPanicError(w, http.StatusUnauthorized, fmt.Sprintf("Пользователь с ID '%s' не найден", userID))
+		}
+		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при получении данных пользователя")
+	}
+	return user
+}
+
 func getAndValidateTenderByID(w http.ResponseWriter, tenderID string) *models.Tender {
 	tender, err := database.GetTenderByID(tenderID)
 	if err != nil {

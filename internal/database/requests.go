@@ -220,3 +220,29 @@ func GetTenderHistoryByVersion(tenderID string, version int) (*models.TenderHist
 	)
 	return &tenderHistory, err
 }
+
+
+// func GetUserByID(userID string) (*models.User, error) {
+// 	var user models.User
+
+// 	query := `
+// 		SELECT id, username, first_name, last_name, created_at, updated_at
+// 		FROM employee
+// 		WHERE id = $1
+// 	`
+
+// 	// Выполняем запрос к базе данных
+// 	err := dbConn.QueryRow(context.Background(), query, userID).Scan(
+// 		&user.ID,
+// 		&user.Username,
+// 		&user.FirstName,
+// 		&user.LastName,
+// 		&user.CreatedAt,
+// 		&user.UpdatedAt,
+// 	)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	return &user, nil
+// }

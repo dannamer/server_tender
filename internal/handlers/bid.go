@@ -25,7 +25,7 @@ func CreateBidHandler(w http.ResponseWriter, r *http.Request) {
 	validateDescription(w, bidRequest.Description, "предложения")
 	
 	tender := getAndValidateTenderByID(w, bidRequest.TenderID)
-	user := getAndValidateUserByUsername(w, bidRequest.AuthorID)
+	user := getAndValidateUserByID(w, bidRequest.AuthorID)
 
 	if bidRequest.AuthorType == models.AuthorTypeOrganization {
 		if !database.HasUserOrganization(user.ID) {
