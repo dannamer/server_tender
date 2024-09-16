@@ -75,13 +75,15 @@ type FeedbackResponse struct {
 }
 
 type BidResponse struct {
-	ID         string     `json:"id"`
-	Name       string     `json:"name"`
-	Status     Status     `json:"status"`
-	AuthorType AuthorType `json:"authorType"`
-	AuthorID   string     `json:"authorId"`
-	Version    int        `json:"version"`
-	CreatedAt  string     `json:"createdAt"`
+	ID          string     `json:"id"`
+	Name        string     `json:"name"`
+	Description string     `json:"description"`
+	Status      Status     `json:"status"`
+	TenderID    string     `json:"tenderId"`
+	AuthorType  AuthorType `json:"authorType"`
+	AuthorID    string     `json:"authorId"`
+	Version     int        `json:"version"`
+	CreatedAt   string     `json:"createdAt"`
 }
 
 type BidRequest struct {

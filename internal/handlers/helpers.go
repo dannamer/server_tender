@@ -270,13 +270,15 @@ func createTenderResponse(tender *models.Tender) *models.TenderResponse {
 
 func createBidResponse(bid *models.Bid) *models.BidResponse {
 	return &models.BidResponse{
-		ID:         bid.ID,
-		Name:       bid.Name,
-		Status:     bid.Status,
-		AuthorType: bid.AuthorType,
-		AuthorID:   bid.AuthorID,
-		Version:    bid.Version,
-		CreatedAt:  bid.CreatedAt.Format(time.RFC3339),
+		ID:          bid.ID,
+		Name:        bid.Name,
+		Description: bid.Description,
+		Status:      bid.Status,
+		TenderID:    bid.ID,
+		AuthorType:  bid.AuthorType,
+		AuthorID:    bid.AuthorID,
+		Version:     bid.Version,
+		CreatedAt:   bid.CreatedAt.Format(time.RFC3339),
 	}
 }
 
@@ -331,4 +333,3 @@ func validateVersion(w http.ResponseWriter, versionParam string, currentVersion 
 	}
 	return version
 }
-
