@@ -90,6 +90,15 @@ func CreateTables() error {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (bid_id) REFERENCES bids(id) ON DELETE CASCADE
         );`,
+        `CREATE TABLE IF NOT EXISTS bid_decisions (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            user_id UUID NOT NULL,
+            bid_id UUID NOT NULL,
+            decision VARCHAR(50) NOT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES employee(id) ON DELETE CASCADE,
+            FOREIGN KEY (bid_id) REFERENCES bids(id) ON DELETE CASCADE
+        );`,
     }
     for _, query := range queries {
         _, err := dbConn.Exec(context.Background(), query)
@@ -98,7 +107,7 @@ func CreateTables() error {
             return err
         }
     }
-
+    
     log.Println("Все таблицы успешно созданы или уже существуют.")
     return nil
 }
