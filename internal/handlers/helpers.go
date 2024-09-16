@@ -274,7 +274,7 @@ func createBidResponse(bid *models.Bid) *models.BidResponse {
 		Name:        bid.Name,
 		Description: bid.Description,
 		Status:      bid.Status,
-		TenderID:    bid.ID,
+		TenderID:    bid.TenderID,
 		AuthorType:  bid.AuthorType,
 		AuthorID:    bid.AuthorID,
 		Version:     bid.Version,
