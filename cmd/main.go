@@ -27,8 +27,8 @@ func setupRoutes() *chi.Mux {
 	r.Put("/api/bids/{bidId}/submit_decision", handlers.SubmitBidDecisionHandler) // Отправка решения по предложению
 	r.Patch("/api/bids/{bidId}/edit", handlers.EditBidHandler)
 	r.Put("/api/bids/{bidId}/rollback/{version}", handlers.RollbackBidHandler)
-	r.Put("/api/bids/{bidId}/feedback", handlers.GetBidReviewsHandler)
-	r.Get("/api/bids/{tenderId}/reviews", handlers.SubmitBidDecisionHandler)
+	r.Put("/api/bids/{bidId}/feedback", handlers.SubmitBidFeedbackHandler)
+	r.Get("/api/bids/{tenderId}/reviews", handlers.GetBidReviewsHandler)
 
 	return r
 }
