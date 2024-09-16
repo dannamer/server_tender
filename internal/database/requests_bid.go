@@ -90,7 +90,7 @@ func GetBidByID(bidID string) (*models.Bid, error) {
 func GetBidsByUserID(authorID string, limit, offset int) ([]models.BidResponse, error) {
 	bids := []models.BidResponse{}
 	query := `
-        SELECT id, name, status, author_type, author_id, version, created_at
+        SELECT id, name, description, status, tender_id, author_type, author_id, version, created_at
         FROM bids
         WHERE author_id = $1
         ORDER BY name
@@ -105,13 +105,12 @@ func GetBidsByUserID(authorID string, limit, offset int) ([]models.BidResponse, 
 	for rows.Next() {
 		var bid models.BidResponse
 		var createdAt time.Time
-		if err := rows.Scan(&bid.ID, &bid.Name, &bid.Status, &bid.AuthorType, &bid.AuthorID, &bid.Version, &createdAt); err != nil {
+		if err := rows.Scan(&bid.ID, &bid.Name, &bid.Description, &bid.Status, &bid.TenderID, &bid.AuthorType, &bid.AuthorID, &bid.Version, &createdAt); err != nil {
 			return nil, err
 		}
 		bid.CreatedAt = createdAt.Format(time.RFC3339)
 		bids = append(bids, bid)
 	}
-
 	if err = rows.Err(); err != nil {
 		return nil, err
 	}
