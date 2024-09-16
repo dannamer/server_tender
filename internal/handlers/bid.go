@@ -208,7 +208,7 @@ func UpdateBidStatusHandler(w http.ResponseWriter, r *http.Request) {
 	if user.ID != bid.AuthorID {
 		respondWithPanicError(w, http.StatusForbidden, "пользователь не имеет доступа к предложению")
 	}
-	
+
 	bid.Status = models.Status(newStatus)
 
 	if err := database.UpdateBid(bid); err != nil {
@@ -234,11 +234,7 @@ func EditBidHandler(w http.ResponseWriter, r *http.Request) {
 	bid := getAndValidateBidByID(w, bidID)
 	user := getAndValidateUserByUsername(w, username)
 
-	if bid.AuthorType == models.AuthorTypeOrganization {
-		if !database.CheckUserOrganizationResponsibility(user.ID, bid.AuthorID) {
-			respondWithPanicError(w, http.StatusForbidden, "пользователь не имеет ответственности к организации предложения")
-		}
-	} else if user.ID != bid.AuthorID {
+	if user.ID != bid.AuthorID {
 		respondWithPanicError(w, http.StatusForbidden, "пользователь не имеет доступа к предложению")
 	}
 
@@ -278,11 +274,7 @@ func RollbackBidHandler(w http.ResponseWriter, r *http.Request) {
 
 	version := validateVersion(w, versionParam, bid.Version)
 
-	if bid.AuthorType == models.AuthorTypeOrganization {
-		if !database.CheckUserOrganizationResponsibility(user.ID, bid.AuthorID) {
-			respondWithPanicError(w, http.StatusForbidden, "пользователь не имеет ответственности к организации предложения")
-		}
-	} else if user.ID != bid.AuthorID {
+	if user.ID != bid.AuthorID {
 		respondWithPanicError(w, http.StatusForbidden, "пользователь не имеет доступа к предложению")
 	}
 
