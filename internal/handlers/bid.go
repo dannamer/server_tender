@@ -28,7 +28,7 @@ func CreateBidHandler(w http.ResponseWriter, r *http.Request) {
 	user := getAndValidateUserByID(w, bidRequest.AuthorID)
 
 	if bidRequest.AuthorType == models.AuthorTypeOrganization {
-		if !database.HasUserOrganization(user.ID) {
+		if database.HasUserOrganization(user.ID) {
 			respondWithPanicError(w, http.StatusForbidden, "Пользователь не связан с организацией")
 		}
 	}
