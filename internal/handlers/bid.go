@@ -23,7 +23,7 @@ func CreateBidHandler(w http.ResponseWriter, r *http.Request) {
 	validateID(w, bidRequest.TenderID, "ID тендера")
 	validateName(w, bidRequest.Name, "предложения")
 	validateDescription(w, bidRequest.Description, "предложения")
-	
+
 	tender := getAndValidateTenderByID(w, bidRequest.TenderID)
 	user := getAndValidateUserByID(w, bidRequest.AuthorID)
 
@@ -32,7 +32,6 @@ func CreateBidHandler(w http.ResponseWriter, r *http.Request) {
 			respondWithPanicError(w, http.StatusForbidden, "Пользователь не связан с организацией")
 		}
 	}
-	
 
 	if tender.Status != models.Published {
 		respondWithPanicError(w, http.StatusForbidden, "Тендер ещё не опубликован или закрыт")
@@ -57,7 +56,7 @@ func GetUserBidsHandler(w http.ResponseWriter, r *http.Request) {
 	username := r.URL.Query().Get("username")
 	limitParam := r.URL.Query().Get("limit")
 	offsetParam := r.URL.Query().Get("offset")
-	
+
 	user := getAndValidateUserByUsername(w, username)
 
 	limit, offset := validateLimitAndOffset(w, limitParam, offsetParam)
@@ -86,10 +85,10 @@ func GetBidsForTenderHandler(w http.ResponseWriter, r *http.Request) {
 	limitParam := r.URL.Query().Get("limit")
 	offsetParam := r.URL.Query().Get("offset")
 	limit, offset := validateLimitAndOffset(w, limitParam, offsetParam)
-	
+
 	user := getAndValidateUserByUsername(w, username)
 	tender := getAndValidateTenderByID(w, tenderID)
-	
+
 	if !database.CheckUserOrganizationResponsibility(user.ID, tender.OrganizationID) {
 		respondWithPanicError(w, http.StatusForbidden, "Недостаточно прав для выполнения действия")
 	}
@@ -120,7 +119,7 @@ func SubmitBidDecisionHandler(w http.ResponseWriter, r *http.Request) {
 	user := getAndValidateUserByUsername(w, username)
 	bid := getAndValidateBidByID(w, bidID)
 	tender := getAndValidateTenderByID(w, bid.TenderID)
-		
+
 	if !database.CheckUserOrganizationResponsibility(user.ID, tender.OrganizationID) {
 		respondWithPanicError(w, http.StatusForbidden, "пользователь не имеет ответственности к организации стенда")
 	}
@@ -174,31 +173,21 @@ func SubmitBidDecisionHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(createBidResponse(bid))
 }
 
-// func GetBidStatusHandler(w http.ResponseWriter, r *http.Request) {
-// 	defer func() {
-// 		recover()
-// 	}()
+func GetBidStatusHandler(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		recover()
+	}()
 
-// 	bidID := chi.URLParam(r, "bidId")
-// 	username := r.URL.Query().Get("username")
+	bidID := chi.URLParam(r, "bidId")
+	username := r.URL.Query().Get("username")
 
-// 	validateID(w, bidID, "ID предложения")
-// 	validateUsername(w, username)
+	validateID(w, bidID, "ID предложения")
+	validateUsername(w, username)
+	bid := getAndValidateBidByID(w, bidID)
 
-// 	user := getAndValidateUserByUsername(w, username)
-// 	bid := getAndValidateBidByID(w, bidID)
-
-// 	if bid.AuthorType == models.AuthorTypeOrganization {
-// 		if !database.CheckUserOrganizationResponsibility(user.ID, ) {
-// 			respondWithPanicError(w, http.StatusForbidden, "пользователь не имеет ответственности к организации предложения")
-// 		}
-// 	} else if user.ID != bid.AuthorID {
-// 		respondWithPanicError(w, http.StatusForbidden, "пользователь не имеет доступа к предложению")
-// 	}
-
-// 	w.WriteHeader(http.StatusOK)
-// 	json.NewEncoder(w).Encode(bid.Status)
-// }
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(bid.Status)
+}
 
 func UpdateBidStatusHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
@@ -216,14 +205,10 @@ func UpdateBidStatusHandler(w http.ResponseWriter, r *http.Request) {
 	user := getAndValidateUserByUsername(w, username)
 	bid := getAndValidateBidByID(w, bidID)
 
-	if bid.AuthorType == models.AuthorTypeOrganization {
-		if !database.CheckUserOrganizationResponsibility(user.ID, bid.AuthorID) {
-			respondWithPanicError(w, http.StatusForbidden, "пользователь не имеет ответственности к организации предложения")
-		}
-	} else if user.ID != bid.AuthorID {
+	if user.ID != bid.AuthorID {
 		respondWithPanicError(w, http.StatusForbidden, "пользователь не имеет доступа к предложению")
 	}
-
+	
 	bid.Status = models.Status(newStatus)
 
 	if err := database.UpdateBid(bid); err != nil {
@@ -390,7 +375,7 @@ func GetBidReviewsHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при получении отзывов")
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(feedbackResponse)
