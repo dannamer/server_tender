@@ -144,11 +144,12 @@ func SubmitBidDecisionHandler(w http.ResponseWriter, r *http.Request) {
 		respondWithPanicError(w, http.StatusInternalServerError, "Ошибка при сохранении решения")
 	}
 
-	bid.UserDecision = append(bid.UserDecision, *userDecision)
+	userDecisions, _ := database.GetApprovedDecisionsByBidID(bid.ID)
+	
 	if decision == models.Rejected {
 		bid.Сoordination = models.Rejected
 		bid.Status = models.Closed
-	} else if len(bid.UserDecision) >= 3 {
+	} else if len(userDecisions) >= 3 {
 		bid.Сoordination = models.Approved
 		bid.Status = models.Closed
 		bids, err := database.GetBidsByTenderIDWithExpectation(tender.ID)

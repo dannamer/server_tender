@@ -245,3 +245,32 @@ func GetTenderHistoryByVersion(tenderID string, version int) (*models.TenderHist
 
 // 	return &user, nil
 // }
+func GetApprovedDecisionsByBidID(bidID string) ([]models.UserDecision, error) {
+	decisions := []models.UserDecision{}
+	query := `
+        SELECT id, user_id, bid_id, decision, created_at
+        FROM bid_decisions
+        WHERE bid_id = $1 AND decision = $2
+    `
+	rows, err := dbConn.Query(context.Background(), query, bidID, "Approved")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var decision models.UserDecision
+		var createdAt time.Time
+		if err := rows.Scan(&decision.ID, &decision.UserID, &decision.BidID, &decision.Decision, &createdAt); err != nil {
+			return nil, err
+		}
+		decision.Created_at = createdAt
+		decisions = append(decisions, decision)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return decisions, nil
+}
