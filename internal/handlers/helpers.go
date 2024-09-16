@@ -258,13 +258,14 @@ func createBid(bid *models.BidRequest) *models.Bid {
 
 func createTenderResponse(tender *models.Tender) *models.TenderResponse {
 	return &models.TenderResponse{
-		ID:          tender.ID,
-		Name:        tender.Name,
-		Description: tender.Description,
-		ServiceType: tender.ServiceType,
-		Status:      tender.Status,
-		Version:     tender.Version,
-		CreatedAt:   tender.CreatedAt.Format(time.RFC3339),
+		ID:             tender.ID,
+		Name:           tender.Name,
+		Description:    tender.Description,
+		ServiceType:    tender.ServiceType,
+		Status:         tender.Status,
+		OrganizationID: tender.OrganizationID,
+		Version:        tender.Version,
+		CreatedAt:      tender.CreatedAt.Format(time.RFC3339),
 	}
 }
 

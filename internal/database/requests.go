@@ -48,7 +48,7 @@ func SaveTender(tender *models.Tender) error {
 
 func GetTendersResponse(serviceTypes []string, limit, offset int) ([]models.TenderResponse, error) {
 	query := `
-		SELECT id, name, description, service_type, status, version, created_at 
+		SELECT id, name, description, service_type, status, organization_id version, created_at 
 		FROM tenders
 	`
 	var args []interface{}
@@ -71,7 +71,7 @@ func GetTendersResponse(serviceTypes []string, limit, offset int) ([]models.Tend
 	for rows.Next() {
 		var tender models.TenderResponse
 		var created_at time.Time
-		err := rows.Scan(&tender.ID, &tender.Name, &tender.Description, &tender.ServiceType, &tender.Status, &tender.Version, &created_at)
+		err := rows.Scan(&tender.ID, &tender.Name, &tender.Description, &tender.ServiceType, &tender.Status, &tender.OrganizationID, &tender.Version, &created_at)
 		tender.CreatedAt = created_at.Format(time.RFC3339)
 		if err != nil {
 			log.Printf("Ошибка при обработке результата запроса: %v", err)
@@ -220,7 +220,6 @@ func GetTenderHistoryByVersion(tenderID string, version int) (*models.TenderHist
 	)
 	return &tenderHistory, err
 }
-
 
 // func GetUserByID(userID string) (*models.User, error) {
 // 	var user models.User

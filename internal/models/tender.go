@@ -43,13 +43,14 @@ type TenderRequest struct {
 }
 
 type TenderResponse struct {
-	ID          string      `json:"id"`          // Уникальный идентификатор тендера (UUID)
-	Name        string      `json:"name"`        // Название тендера
-	Description string      `json:"description"` // Описание тендера
-	Status      Status      `json:"status"`      // Статус тендера (CREATED, PUBLISHED, CLOSED)
-	ServiceType ServiceType `json:"serviceType"` // Тип услуги, к которой относится тендер
-	Version     int         `json:"version"`     // Версия тендера для откатов и обновлений
-	CreatedAt   string      `json:"createdAt"`   // Дата создания тендера
+	ID             string      `json:"id"`          // Уникальный идентификатор тендера (UUID)
+	Name           string      `json:"name"`        // Название тендера
+	Description    string      `json:"description"` // Описание тендера
+	ServiceType    ServiceType `json:"serviceType"` // Тип услуги, к которой относится тендер
+	Status         Status      `json:"status"`      // Статус тендера (CREATED, PUBLISHED, CLOSED)
+	OrganizationID string      `json:"organizationId"`
+	Version        int         `json:"version"`   // Версия тендера для откатов и обновлений
+	CreatedAt      string      `json:"createdAt"` // Дата создания тендера
 }
 
 type TenderEditRequest struct {
