@@ -22,7 +22,7 @@ func setupRoutes() *chi.Mux {
 	r.Post("/api/bids/new", handlers.CreateBidHandler)                                  // Создание нового предложения
 	r.Get("/api/bids/my", handlers.GetUserBidsHandler)                                  // Получение предложений пользователя
 	r.Get("/api/bids/{tenderId}/list", handlers.GetBidsForTenderHandler)                // Получение предложений для тендера
-	r.Get("/api/bids/{bidId}/status", handlers.GetBidStatusHandler)                     // Получение статуса предложения
+	// r.Get("/api/bids/{bidId}/status", handlers.GetBidStatusHandler)                     // Получение статуса предложения
 	r.Put("/api/bids/{bidId}/status", handlers.UpdateBidStatusHandler)
 	r.Put("/api/bids/{bidId}/submit_decision", handlers.SubmitBidDecisionHandler) // Отправка решения по предложению
 	r.Patch("/api/bids/{bidId}/edit", handlers.EditBidHandler)

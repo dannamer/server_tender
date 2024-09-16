@@ -28,7 +28,7 @@ func CreateBidHandler(w http.ResponseWriter, r *http.Request) {
 	user := getAndValidateUserByID(w, bidRequest.AuthorID)
 
 	if bidRequest.AuthorType == models.AuthorTypeOrganization {
-		if database.HasUserOrganization(user.ID) {
+		if !database.CheckUserOrganization(user.ID) {
 			respondWithPanicError(w, http.StatusForbidden, "Пользователь не связан с организацией")
 		}
 	}
@@ -174,31 +174,31 @@ func SubmitBidDecisionHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(createBidResponse(bid))
 }
 
-func GetBidStatusHandler(w http.ResponseWriter, r *http.Request) {
-	defer func() {
-		recover()
-	}()
+// func GetBidStatusHandler(w http.ResponseWriter, r *http.Request) {
+// 	defer func() {
+// 		recover()
+// 	}()
 
-	bidID := chi.URLParam(r, "bidId")
-	username := r.URL.Query().Get("username")
+// 	bidID := chi.URLParam(r, "bidId")
+// 	username := r.URL.Query().Get("username")
 
-	validateID(w, bidID, "ID предложения")
-	validateUsername(w, username)
+// 	validateID(w, bidID, "ID предложения")
+// 	validateUsername(w, username)
 
-	user := getAndValidateUserByUsername(w, username)
-	bid := getAndValidateBidByID(w, bidID)
+// 	user := getAndValidateUserByUsername(w, username)
+// 	bid := getAndValidateBidByID(w, bidID)
 
-	if bid.AuthorType == models.AuthorTypeOrganization {
-		if !database.CheckUserOrganizationResponsibility(user.ID, bid.AuthorID) {
-			respondWithPanicError(w, http.StatusForbidden, "пользователь не имеет ответственности к организации предложения")
-		}
-	} else if user.ID != bid.AuthorID {
-		respondWithPanicError(w, http.StatusForbidden, "пользователь не имеет доступа к предложению")
-	}
+// 	if bid.AuthorType == models.AuthorTypeOrganization {
+// 		if !database.CheckUserOrganizationResponsibility(user.ID, ) {
+// 			respondWithPanicError(w, http.StatusForbidden, "пользователь не имеет ответственности к организации предложения")
+// 		}
+// 	} else if user.ID != bid.AuthorID {
+// 		respondWithPanicError(w, http.StatusForbidden, "пользователь не имеет доступа к предложению")
+// 	}
 
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(bid.Status)
-}
+// 	w.WriteHeader(http.StatusOK)
+// 	json.NewEncoder(w).Encode(bid.Status)
+// }
 
 func UpdateBidStatusHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {

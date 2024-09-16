@@ -437,7 +437,7 @@ func GetBidReviews(bidID string, limit, offset int) ([]models.FeedbackResponse, 
 	return feedbackResponses, nil
 }
 
-func HasUserOrganization(userID string) bool {
+func CheckUserOrganization(userID string) bool {
 	query := `
 		SELECT EXISTS (
 			SELECT 1 
