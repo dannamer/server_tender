@@ -150,6 +150,7 @@ func GetBidsByTenderID(tenderID string, limit, offset int) ([]models.BidResponse
 	}
 	return bids, nil
 }
+
 // версия 1
 func GetUserByUsername(username string) (*models.User, error) {
 	var user models.User
@@ -441,7 +442,7 @@ func CheckUserOrganization(userID string) bool {
 	query := `
 		SELECT EXISTS (
 			SELECT 1 
-			FROM employee_organization 
+			FROM organization_responsible 
 			WHERE user_id = $1
 		)
 	`
