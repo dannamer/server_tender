@@ -13,8 +13,7 @@ var dbConn *pgx.Conn
 func ConnectPostgres() (*pgx.Conn, error) {
 	connStr := config.LoadConfig().PostgresConn
     if connStr == "" {
-        connStr = "postgresql://your_user:your_password@192.168.0.11:5432/your_database"
-        //postgres://cnrprod1725736198-team-78028:cnrprod1725736198-team-78028@rc1b-5xmqy6bq501kls4m.mdb.yandexcloud.net:6432/cnrprod1725736198-team-78028
+        connStr = "postgres://cnrprod1725736198-team-78028:cnrprod1725736198-team-78028@rc1b-5xmqy6bq501kls4m.mdb.yandexcloud.net:6432/cnrprod1725736198-team-78028"
     }
 
 	conn, err := pgx.Connect(context.Background(), connStr)
